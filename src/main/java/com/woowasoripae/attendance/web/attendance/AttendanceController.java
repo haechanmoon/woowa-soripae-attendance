@@ -5,6 +5,7 @@ import com.woowasoripae.attendance.web.attendance.dto.ApproveAttendanceRequest;
 import com.woowasoripae.attendance.web.attendance.dto.AttendanceRecordResponse;
 import com.woowasoripae.attendance.web.attendance.dto.FaceCheckRequest;
 import jakarta.validation.Valid;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.YearMonth;
 import java.util.List;
@@ -62,6 +63,12 @@ public class AttendanceController {
     @GetMapping("/api/attendance-records/pending")
     public List<AttendanceRecordResponse> getPendingQueue() {
         return attendanceService.getPendingPhotoQueue();
+    }
+
+    /** 임원 관리 > 대면 출석 체크: 해당 날짜(기본 오늘)의 전체 출석 기록 — 사진 인증과 대면 체크 사이의 이중 처리를 막기 위해 프론트에서 사용. */
+    @GetMapping("/api/attendance-records")
+    public List<AttendanceRecordResponse> getRecordsByDate(@RequestParam(required = false) LocalDate date) {
+        return attendanceService.getRecordsByDate(date != null ? date : LocalDate.now());
     }
 
     /** 홈 탭 캘린더: 월별 내 합주 기록. */

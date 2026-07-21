@@ -19,6 +19,8 @@ public interface AttendanceRecordRepository extends JpaRepository<AttendanceReco
 
     List<AttendanceRecord> findByPracticeDateAndScheduledStartTime(LocalDate practiceDate, LocalTime scheduledStartTime);
 
+    List<AttendanceRecord> findByPracticeDate(LocalDate practiceDate);
+
     Optional<AttendanceRecord> findByMemberIdAndPracticeDateAndScheduledStartTime(
             Long memberId, LocalDate practiceDate, LocalTime scheduledStartTime);
 

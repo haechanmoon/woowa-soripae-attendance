@@ -104,6 +104,12 @@ public class AttendanceService {
                 .stream().map(AttendanceRecordResponse::from).toList();
     }
 
+    /** 임원 관리 > 대면 출석 체크: 해당 날짜에 이미 존재하는 모든 출석 기록(사진/대면 무관) — 이중 처리 방지용. */
+    public List<AttendanceRecordResponse> getRecordsByDate(LocalDate practiceDate) {
+        return attendanceRecordRepository.findByPracticeDate(practiceDate)
+                .stream().map(AttendanceRecordResponse::from).toList();
+    }
+
     public List<AttendanceRecordResponse> getMemberCalendar(Long memberId, YearMonth yearMonth) {
         getMember(memberId);
         LocalDate from = yearMonth.atDay(1);

@@ -7,7 +7,9 @@ import java.util.List;
 public record MemberDetailResponse(
         Long id,
         String name,
-        String avatarSeed,
+        String position,
+        String part,
+        boolean officer,
         int unpaidFine,
         List<AttendanceRecordResponse> recentHistory
 ) {

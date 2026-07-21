@@ -5,6 +5,7 @@ import com.woowasoripae.attendance.domain.attendance.AttendanceRecordRepository;
 import com.woowasoripae.attendance.global.exception.ApiException;
 import com.woowasoripae.attendance.web.attendance.dto.AttendanceRecordResponse;
 import com.woowasoripae.attendance.web.member.dto.FineSummaryResponse;
+import com.woowasoripae.attendance.web.member.dto.MemberCreateRequest;
 import com.woowasoripae.attendance.web.member.dto.MemberDetailResponse;
 import com.woowasoripae.attendance.web.member.dto.MemberSummaryResponse;
 import java.util.List;
@@ -60,7 +61,15 @@ public class MemberService {
                 .map(AttendanceRecordResponse::from)
                 .toList();
 
-        return new MemberDetailResponse(member.getId(), member.getName(), member.getAvatarSeed(), unpaidFine, recentHistory);
+        return new MemberDetailResponse(
+                member.getId(), member.getName(),
+                member.getPosition(), member.getPart(), member.isOfficer(), unpaidFine, recentHistory);
+    }
+
+    @Transactional
+    public MemberSummaryResponse createMember(MemberCreateRequest request) {
+        Member member = new Member(request.name(), request.position(), request.part());
+        return MemberSummaryResponse.from(memberRepository.save(member));
     }
 
     public void assertMemberExists(Long memberId) {

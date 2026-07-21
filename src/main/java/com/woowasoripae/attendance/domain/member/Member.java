@@ -24,12 +24,21 @@ public class Member extends BaseTimeEntity {
     @Column(nullable = false, length = 30)
     private String name;
 
-    /** dicebear avatar seed used by the frontend, e.g. https://api.dicebear.com/7.x/notionists/svg?seed={avatarSeed} */
-    @Column(nullable = false, length = 50)
-    private String avatarSeed;
+    /** 임원 직책 (회장/부회장/총무/서기/홍보 등). null이면 일반 부원. */
+    @Column(length = 20)
+    private String position;
 
-    public Member(String name, String avatarSeed) {
+    /** 합주 파트 (보컬/세션/카혼/매니저 등). */
+    @Column(nullable = false, length = 20)
+    private String part;
+
+    public Member(String name, String position, String part) {
         this.name = name;
-        this.avatarSeed = avatarSeed;
+        this.position = position;
+        this.part = part;
+    }
+
+    public boolean isOfficer() {
+        return position != null;
     }
 }
