@@ -13,6 +13,7 @@ const state = {
     mySongs: [],
     currentSong: null,
     currentPoll: null,
+    selectedSongMemberIds: new Set(),
 };
 
 const CORE_START = '13:00';

@@ -295,6 +295,84 @@ async function deleteClubEvent(id) {
     }
 }
 
+// ---------- 임원진: 합주 곡 관리 ----------
+
+async function loadAdminSongs() {
+    try {
+        const [members, songs] = await Promise.all([
+            state.allMembers.length ? Promise.resolve(state.allMembers) : api('/api/members'),
+            api('/api/songs'),
+        ]);
+        state.allMembers = members;
+        state.selectedSongMemberIds = new Set();
+        renderSongMemberPicker();
+        renderAdminSongList(songs);
+    } catch (e) {
+        showToast(e.message);
+    }
+}
+
+function renderSongMemberPicker() {
+    const el = document.getElementById('song-member-picker');
+    el.innerHTML = state.allMembers.map(m => `
+        <button type="button" onclick="toggleSongMemberPick(${m.id})" id="pick-member-${m.id}" class="px-3 py-1.5 text-xs font-bold rounded-full border bg-white border-gray-200 text-gray-400 transition-colors">${m.name}</button>
+    `).join('');
+}
+
+function toggleSongMemberPick(memberId) {
+    const btn = document.getElementById(`pick-member-${memberId}`);
+    if (state.selectedSongMemberIds.has(memberId)) {
+        state.selectedSongMemberIds.delete(memberId);
+        btn.className = "px-3 py-1.5 text-xs font-bold rounded-full border bg-white border-gray-200 text-gray-400 transition-colors";
+    } else {
+        state.selectedSongMemberIds.add(memberId);
+        btn.className = "px-3 py-1.5 text-xs font-bold rounded-full border bg-toss-blue border-toss-blue text-white transition-colors";
+    }
+}
+
+function renderAdminSongList(list) {
+    const el = document.getElementById('admin-song-list');
+    el.innerHTML = '';
+    if (list.length === 0) {
+        el.innerHTML = `<div class="p-4 bg-gray-50 rounded-xl text-center text-xs font-bold text-gray-400">등록된 곡이 없습니다.</div>`;
+        return;
+    }
+    list.forEach(song => {
+        el.insertAdjacentHTML('beforeend', `
+            <div class="flex justify-between items-center bg-blue-50 p-3.5 rounded-xl border border-blue-100/50">
+                <span class="text-sm font-black text-toss-blue">${song.title}</span>
+                <button onclick="deleteSong(${song.id})" class="w-7 h-7 bg-white rounded-full flex items-center justify-center text-gray-400 hover:text-toss-red shadow-sm transition"><i class="fa-solid fa-xmark text-xs"></i></button>
+            </div>
+        `);
+    });
+}
+
+async function addSong() {
+    const title = document.getElementById('song-title-input').value.trim();
+    if (!title) return showToast('곡 제목을 입력해주세요.');
+    if (state.selectedSongMemberIds.size === 0) return showToast('참여할 부원을 1명 이상 선택해주세요.');
+    try {
+        await api('/api/songs', {
+            method: 'POST',
+            body: JSON.stringify({ title, memberIds: Array.from(state.selectedSongMemberIds) })
+        });
+        document.getElementById('song-title-input').value = '';
+        await loadAdminSongs();
+        showToast('곡이 등록되었습니다.');
+    } catch (e) {
+        showToast(e.message);
+    }
+}
+
+async function deleteSong(id) {
+    try {
+        await api(`/api/songs/${id}`, { method: 'DELETE' });
+        await loadAdminSongs();
+    } catch (e) {
+        showToast(e.message);
+    }
+}
+
 async function openMemberDetail(memberId) {
     try {
         const detail = await api(`/api/members/${memberId}`);

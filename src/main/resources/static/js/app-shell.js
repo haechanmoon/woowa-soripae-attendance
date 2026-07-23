@@ -44,20 +44,21 @@ function switchTab(tabName) {
 }
 
 function switchAdminMenu(menu) {
-    const buttons = { queue: document.getElementById('btn-admin-queue'), face: document.getElementById('btn-admin-face'), event: document.getElementById('btn-admin-event') };
-    const views = { queue: document.getElementById('admin-view-queue'), face: document.getElementById('admin-view-face'), event: document.getElementById('admin-view-event') };
+    const buttons = { queue: document.getElementById('btn-admin-queue'), face: document.getElementById('btn-admin-face'), event: document.getElementById('btn-admin-event'), song: document.getElementById('btn-admin-song') };
+    const views = { queue: document.getElementById('admin-view-queue'), face: document.getElementById('admin-view-face'), event: document.getElementById('admin-view-event'), song: document.getElementById('admin-view-song') };
 
     Object.keys(views).forEach(key => {
         const active = key === menu;
         views[key].classList.toggle('hidden', !active);
         buttons[key].className = active
-            ? "flex-1 py-2.5 text-xs font-black bg-white text-toss-text rounded-xl shadow-sm transition-all"
-            : "flex-1 py-2.5 text-xs font-black text-gray-400 rounded-xl transition-all";
+            ? "py-2.5 text-xs font-black bg-white text-toss-text rounded-xl shadow-sm transition-all"
+            : "py-2.5 text-xs font-black text-gray-400 rounded-xl transition-all";
     });
 
     if (menu === 'queue') loadAdminQueue();
     else if (menu === 'face') loadAdminRoster();
-    else loadAdminEvents();
+    else if (menu === 'event') loadAdminEvents();
+    else loadAdminSongs();
 }
 
 function openPwModal() {
