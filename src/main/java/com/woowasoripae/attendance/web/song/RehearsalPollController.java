@@ -4,6 +4,7 @@ import com.woowasoripae.attendance.domain.song.RehearsalPollService;
 import com.woowasoripae.attendance.web.song.dto.PollConfirmRequest;
 import com.woowasoripae.attendance.web.song.dto.PollCreateRequest;
 import com.woowasoripae.attendance.web.song.dto.PollResponse;
+import com.woowasoripae.attendance.web.song.dto.PollUnconfirmRequest;
 import com.woowasoripae.attendance.web.song.dto.SlotResponseRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -48,5 +49,11 @@ public class RehearsalPollController {
     @PostMapping("/api/polls/{pollId}/confirm")
     public PollResponse confirm(@PathVariable Long pollId, @Valid @RequestBody PollConfirmRequest request) {
         return rehearsalPollService.confirm(pollId, request);
+    }
+
+    /** 보컬이 확정을 취소하고 다시 고를 수 있도록 되돌림. */
+    @PostMapping("/api/polls/{pollId}/unconfirm")
+    public PollResponse unconfirm(@PathVariable Long pollId, @Valid @RequestBody PollUnconfirmRequest request) {
+        return rehearsalPollService.unconfirm(pollId, request);
     }
 }

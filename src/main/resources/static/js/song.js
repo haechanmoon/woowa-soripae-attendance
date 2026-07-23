@@ -61,6 +61,7 @@ function renderPollArea() {
             confirmedHtml = `<div class="bg-green-50 border border-green-100 rounded-2xl p-4 mb-4">
                 <p class="text-[11px] font-black text-toss-green mb-1"><i class="fa-solid fa-circle-check mr-1"></i>확정된 합주 시간</p>
                 <p class="text-sm font-black text-toss-text">${formatSlotRange(slot)}</p>
+                ${iAmVocal ? `<button onclick="cancelConfirmedPoll()" class="w-full mt-3 py-2.5 text-xs font-black rounded-xl bg-white text-toss-red border border-red-100 active:scale-95">확정 취소하고 다시 정하기</button>` : ''}
             </div>`;
         }
         if (iAmVocal) {
@@ -72,12 +73,46 @@ function renderPollArea() {
     return poll.slots.map(slot => slotCardHtml(slot, iAmVocal)).join('');
 }
 
+async function cancelConfirmedPoll() {
+    try {
+        state.currentPoll = await api(`/api/polls/${state.currentPoll.pollId}/unconfirm`, {
+            method: 'POST',
+            body: JSON.stringify({ memberId: state.member.id })
+        });
+        renderSongSheet();
+        showToast('확정을 취소했어요. 다른 후보 시간을 다시 골라주세요.');
+    } catch (e) {
+        showToast(e.message);
+    }
+}
+
+function pollHourOptions() {
+    let html = '';
+    for (let h = 8; h < 24; h++) {
+        const v = String(h).padStart(2, '0');
+        html += `<option value="${v}">${v}시</option>`;
+    }
+    return html;
+}
+
+function pollMinuteOptions() {
+    return ['00', '10', '20', '30', '40', '50'].map(m => `<option value="${m}">${m}분</option>`).join('');
+}
+
+function pollSlotGroupHtml() {
+    return `<div class="poll-slot-group grid grid-cols-3 gap-1.5">
+        <input type="date" min="${todayIso()}" value="${todayIso()}" class="poll-slot-date p-3 bg-white border border-gray-200 rounded-xl outline-none font-bold text-toss-text text-xs focus:border-toss-blue">
+        <select class="poll-slot-hour p-3 bg-white border border-gray-200 rounded-xl outline-none font-bold text-toss-text text-xs focus:border-toss-blue">${pollHourOptions()}</select>
+        <select class="poll-slot-minute p-3 bg-white border border-gray-200 rounded-xl outline-none font-bold text-toss-text text-xs focus:border-toss-blue">${pollMinuteOptions()}</select>
+    </div>`;
+}
+
 function createPollFormHtml() {
     return `<div class="bg-gray-50 p-5 rounded-3xl border border-gray-100">
         <p class="text-sm font-black text-toss-text mb-1">합주 시간 후보 올리기</p>
         <p class="text-[11px] font-bold text-toss-subText mb-4">후보 시간을 2~4개 정도 올려서 팀원들의 가능 여부를 받아보세요. (1시간 고정)</p>
         <div id="poll-slot-inputs" class="space-y-2 mb-3">
-            <input type="datetime-local" class="poll-slot-input w-full p-3.5 bg-white border border-gray-200 rounded-2xl outline-none font-bold text-toss-text text-sm focus:border-toss-blue">
+            ${pollSlotGroupHtml()}
         </div>
         <button onclick="addPollSlotInput()" class="w-full text-xs font-black text-toss-blue py-2.5 mb-3">+ 후보 시간 추가</button>
         <button onclick="submitCreatePoll()" class="w-full bg-toss-blue text-white font-black text-base py-4 rounded-2xl shadow-[0_4px_14px_rgba(49,130,246,0.2)] active:scale-[0.98] transition-transform">
@@ -89,7 +124,7 @@ function createPollFormHtml() {
 function addPollSlotInput() {
     const container = document.getElementById('poll-slot-inputs');
     if (container.children.length >= 4) { showToast('후보 시간은 최대 4개까지 올릴 수 있어요.'); return; }
-    container.insertAdjacentHTML('beforeend', `<input type="datetime-local" class="poll-slot-input w-full p-3.5 bg-white border border-gray-200 rounded-2xl outline-none font-bold text-toss-text text-sm focus:border-toss-blue">`);
+    container.insertAdjacentHTML('beforeend', pollSlotGroupHtml());
 }
 
 function toLocalIso(date) {
@@ -98,14 +133,20 @@ function toLocalIso(date) {
 }
 
 async function submitCreatePoll() {
-    const values = Array.from(document.querySelectorAll('.poll-slot-input')).map(i => i.value).filter(Boolean);
-    if (values.length === 0) return showToast('후보 시간을 1개 이상 입력해주세요.');
+    const groups = Array.from(document.querySelectorAll('.poll-slot-group'));
+    const slots = groups
+        .map(g => {
+            const date = g.querySelector('.poll-slot-date').value;
+            if (!date) return null;
+            const hour = g.querySelector('.poll-slot-hour').value;
+            const minute = g.querySelector('.poll-slot-minute').value;
+            const start = new Date(`${date}T${hour}:${minute}:00`);
+            const end = new Date(start.getTime() + 60 * 60 * 1000);
+            return { startAt: toLocalIso(start), endAt: toLocalIso(end) };
+        })
+        .filter(Boolean);
 
-    const slots = values.map(v => {
-        const start = new Date(v);
-        const end = new Date(start.getTime() + 60 * 60 * 1000);
-        return { startAt: toLocalIso(start), endAt: toLocalIso(end) };
-    });
+    if (slots.length === 0) return showToast('후보 시간을 1개 이상 입력해주세요.');
 
     try {
         state.currentPoll = await api(`/api/songs/${state.currentSong.id}/polls`, {

@@ -339,9 +339,8 @@ function renderAdminSongList(list) {
     }
     list.forEach(song => {
         el.insertAdjacentHTML('beforeend', `
-            <div class="flex justify-between items-center bg-blue-50 p-3.5 rounded-xl border border-blue-100/50">
+            <div class="flex items-center bg-blue-50 p-3.5 rounded-xl border border-blue-100/50">
                 <span class="text-sm font-black text-toss-blue">${song.title}</span>
-                <button onclick="deleteSong(${song.id})" class="w-7 h-7 bg-white rounded-full flex items-center justify-center text-gray-400 hover:text-toss-red shadow-sm transition"><i class="fa-solid fa-xmark text-xs"></i></button>
             </div>
         `);
     });
@@ -359,15 +358,6 @@ async function addSong() {
         document.getElementById('song-title-input').value = '';
         await loadAdminSongs();
         showToast('곡이 등록되었습니다.');
-    } catch (e) {
-        showToast(e.message);
-    }
-}
-
-async function deleteSong(id) {
-    try {
-        await api(`/api/songs/${id}`, { method: 'DELETE' });
-        await loadAdminSongs();
     } catch (e) {
         showToast(e.message);
     }

@@ -153,6 +153,37 @@ class AttendanceServiceTest {
     }
 
     @Nested
+    @DisplayName("delete")
+    class Delete {
+
+        @Test
+        @DisplayName("잘못 처리한 기록을 삭제해 미등록 상태로 되돌린다")
+        void deletesRecord() {
+            AttendanceRecord record = AttendanceRecord.createPendingPhotoSubmission(
+                    member, LocalDate.now(), SCHEDULED_START, SCHEDULED_START.plusHours(2),
+                    "photo.jpg", java.time.LocalDateTime.now());
+            given(attendanceRecordRepository.findById(10L)).willReturn(Optional.of(record));
+
+            attendanceService.delete(10L);
+
+            verify(attendanceRecordRepository).delete(record);
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 기록이면 404를 던지고 아무것도 지우지 않는다")
+        void throwsNotFoundWhenRecordMissing() {
+            given(attendanceRecordRepository.findById(999L)).willReturn(Optional.empty());
+
+            assertThatThrownBy(() -> attendanceService.delete(999L))
+                    .isInstanceOf(ApiException.class)
+                    .extracting(e -> ((ApiException) e).getStatus())
+                    .isEqualTo(org.springframework.http.HttpStatus.NOT_FOUND);
+
+            verify(attendanceRecordRepository, never()).delete(any());
+        }
+    }
+
+    @Nested
     @DisplayName("faceCheck")
     class FaceCheck {
 

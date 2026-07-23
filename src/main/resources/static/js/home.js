@@ -115,9 +115,13 @@ function renderCalendar() {
         eventByDay[day] = ev;
     });
 
+    const today = new Date();
+    const isCurrentMonth = today.getFullYear() === state.calYear && today.getMonth() + 1 === state.calMonth;
+
     for (let day = 1; day <= daysInMonth; day++) {
         const record = byDay[day];
         const event = eventByDay[day];
+        const isToday = isCurrentMonth && day === today.getDate();
         let classes = "text-sm font-black text-toss-text w-8 h-8 mx-auto flex items-center justify-center rounded-full cursor-pointer transition relative";
         let clickEvt = '';
         if (record) {
@@ -128,6 +132,7 @@ function renderCalendar() {
             classes += " border-2 border-amber-400 text-amber-500 bg-amber-50 active:scale-90";
             clickEvt = `onclick="openCalSheet(${day})"`;
         }
+        if (isToday) classes += " ring-2 ring-toss-blue ring-offset-1";
         const star = event ? `<i class="fa-solid fa-star absolute -top-1.5 -right-1.5 text-[8px] text-amber-500 bg-white rounded-full p-0.5 shadow-sm"></i>` : '';
         grid.innerHTML += `<div class="${classes}" ${clickEvt}>${day}${star}</div>`;
     }

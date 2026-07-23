@@ -6,6 +6,7 @@ import com.woowasoripae.attendance.global.exception.ApiException;
 import com.woowasoripae.attendance.web.song.dto.PollConfirmRequest;
 import com.woowasoripae.attendance.web.song.dto.PollCreateRequest;
 import com.woowasoripae.attendance.web.song.dto.PollResponse;
+import com.woowasoripae.attendance.web.song.dto.PollUnconfirmRequest;
 import com.woowasoripae.attendance.web.song.dto.SlotResponseRequest;
 import java.util.List;
 import java.util.Map;
@@ -107,6 +108,20 @@ public class RehearsalPollService {
 
         poll.confirm(slot);
 
+        return toPollResponse(poll, slotRepository.findByPollIdOrderByStartAtAsc(pollId));
+    }
+
+    /** 확정을 취소하고 OPEN으로 되돌린다. 확정한(=생성한) 보컬만 가능. 기존 후보 시간/투표는 그대로 유지된다. */
+    @Transactional
+    public PollResponse unconfirm(Long pollId, PollUnconfirmRequest request) {
+        RehearsalPoll poll = getPoll(pollId);
+        if (poll.isOpen()) {
+            throw ApiException.conflict("아직 확정되지 않은 조율입니다.");
+        }
+        if (!poll.getCreatedBy().getId().equals(request.memberId())) {
+            throw ApiException.badRequest("이 조율을 생성한 보컬만 확정을 취소할 수 있습니다.");
+        }
+        poll.unconfirm();
         return toPollResponse(poll, slotRepository.findByPollIdOrderByStartAtAsc(pollId));
     }
 

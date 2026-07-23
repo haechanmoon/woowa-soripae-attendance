@@ -6,6 +6,7 @@ import com.woowasoripae.attendance.global.exception.ApiException;
 import com.woowasoripae.attendance.web.song.dto.SongCreateRequest;
 import com.woowasoripae.attendance.web.song.dto.SongDetailResponse;
 import com.woowasoripae.attendance.web.song.dto.SongSummaryResponse;
+import java.util.Comparator;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,6 +14,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional(readOnly = true)
 public class SongService {
+
+    /** 곡 상세에서 참여자를 보여주는 순서. 목록에 없는 파트(매니저 등)는 뒤로 밀린다. */
+    private static final List<String> PART_DISPLAY_ORDER = List.of("보컬", "세션", "카혼");
 
     private final SongRepository songRepository;
     private final SongMemberRepository songMemberRepository;
@@ -69,17 +73,15 @@ public class SongService {
         return SongDetailResponse.from(song, membersOf(songId));
     }
 
-    /** 임원 관리 > 곡 관리: 곡 자체를 삭제한다(배정도 함께 삭제). */
-    @Transactional
-    public void delete(Long songId) {
-        Song song = getSong(songId);
-        songMemberRepository.deleteAll(songMemberRepository.findBySongId(songId));
-        songRepository.delete(song);
-    }
-
+    /** 곡 참여자를 보컬 > 세션 > 카혼 > 그 외 순서로 정렬한다. */
     private List<Member> membersOf(Long songId) {
+        Comparator<Member> byPartOrder = Comparator.comparingInt(member -> {
+            int index = PART_DISPLAY_ORDER.indexOf(member.getPart());
+            return index == -1 ? PART_DISPLAY_ORDER.size() : index;
+        });
         return songMemberRepository.findBySongId(songId).stream()
                 .map(SongMember::getMember)
+                .sorted(byPartOrder)
                 .toList();
     }
 

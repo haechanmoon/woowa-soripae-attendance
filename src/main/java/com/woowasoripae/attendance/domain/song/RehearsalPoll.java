@@ -58,6 +58,15 @@ public class RehearsalPoll extends BaseTimeEntity {
         this.confirmedSlot = slot;
     }
 
+    /** 확정을 취소하고 다시 OPEN 상태로 되돌린다. 기존 후보 시간/투표는 그대로 남아 다른 시간으로 바로 재확정할 수 있다. */
+    public void unconfirm() {
+        if (this.status != PollStatus.CONFIRMED) {
+            throw new IllegalStateException("확정된 조율만 취소할 수 있습니다.");
+        }
+        this.status = PollStatus.OPEN;
+        this.confirmedSlot = null;
+    }
+
     public boolean isOpen() {
         return this.status == PollStatus.OPEN;
     }

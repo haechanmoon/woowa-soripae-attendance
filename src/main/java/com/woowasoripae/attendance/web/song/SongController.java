@@ -58,11 +58,4 @@ public class SongController {
     public SongDetailResponse removeMember(@PathVariable Long songId, @PathVariable Long memberId) {
         return songService.removeMember(songId, memberId);
     }
-
-    /** 임원 관리 > 곡 관리: 곡 삭제. */
-    @DeleteMapping("/api/songs/{songId}")
-    public ResponseEntity<Void> delete(@PathVariable Long songId) {
-        songService.delete(songId);
-        return ResponseEntity.noContent().build();
-    }
 }
