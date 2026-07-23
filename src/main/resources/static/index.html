@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>소리패 출석 앱</title>
+    <title>소리패 시스템</title>
 
     <!-- 부원 전용 앱: 검색엔진 노출 방지 (이름 클릭만으로 접속되는 구조라 외부 노출 시 개인정보 위험) -->
     <meta name="robots" content="noindex, nofollow">
@@ -14,7 +14,7 @@
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="소리패">
+    <meta name="apple-mobile-web-app-title" content="소리패 시스템">
 
     <!-- 카카오톡 인앱 브라우저 강제 탈출 스크립트 -->
     <script>
@@ -51,7 +51,7 @@
 
     <!-- 로그인(본인 선택) 화면 -->
     <div id="login-screen" class="min-h-screen flex flex-col items-center px-6 pt-20 pb-10 bg-toss-bg">
-        <h1 class="text-3xl font-black text-toss-text mb-1 tracking-tight">소리패</h1>
+        <h1 class="text-3xl font-black text-toss-text mb-1 tracking-tight">소리패 시스템</h1>
         <p class="text-sm font-bold text-toss-subText mb-8">본인 이름을 선택해주세요</p>
         <div id="login-status" class="text-xs font-bold text-toss-subText mb-4"></div>
         <div id="login-member-list" class="w-full max-w-[360px] hide-scrollbar"></div>
@@ -60,7 +60,7 @@
     <div class="app-container relative hidden" id="app-root">
 
         <header class="sticky top-0 bg-[#F2F4F6]/90 backdrop-blur-md z-30 px-6 py-4 flex justify-between items-center">
-            <h1 class="text-2xl font-extrabold text-toss-text tracking-tight">소리패</h1>
+            <h1 class="text-lg font-extrabold text-toss-text tracking-tight">소리패 시스템</h1>
             <div class="flex items-center space-x-3">
                 <div class="text-right">
                     <p class="text-[10px] font-bold text-toss-subText" id="header-date">-</p>
@@ -94,7 +94,8 @@
                         </div>
                         <div>
                             <h3 class="text-base font-bold text-toss-text">다음 주 스케줄 등록</h3>
-                            <p class="text-[11px] text-toss-blue font-bold mt-1 bg-blue-50 inline-block px-2 py-0.5 rounded-md">토요일 자정 마감</p>
+                            <p class="text-[11px] text-toss-subText font-bold mt-0.5" id="next-week-range">-</p>
+                            <p class="text-[11px] text-toss-blue font-bold mt-1 bg-blue-50 inline-block px-2 py-0.5 rounded-md">일요일 자정 마감</p>
                         </div>
                     </div>
                     <i class="fa-solid fa-chevron-right text-gray-300"></i>
@@ -187,7 +188,7 @@
 
             <div id="tab-song" class="space-y-4 tab-content hidden pt-2">
                 <div class="mb-2 px-1">
-                    <h2 class="text-2xl font-black text-toss-text mb-1">합주 시간표</h2>
+                    <h2 class="text-2xl font-black text-toss-text mb-1">합주 시간표 <span class="text-xs font-bold text-toss-blue bg-blue-50 px-2 py-0.5 rounded-md align-middle">Beta</span></h2>
                     <p class="text-xs font-bold text-toss-subText">내가 배정된 곡의 합주 시간을 팀원들과 맞춰보세요.</p>
                 </div>
 

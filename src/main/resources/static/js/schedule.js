@@ -1,5 +1,25 @@
 // ---------- 스케줄 등록 ----------
 
+/** 백엔드 ScheduleService.resolveNextOccurrence와 동일한 기준(오늘이 월요일이어도 반드시 다음 주)으로 다음 주 월~일 날짜를 계산한다. */
+function nextWeekRange() {
+    const now = new Date();
+    const day = now.getDay();
+    const daysUntilNextMonday = ((1 - day + 7) % 7) || 7;
+    const nextMonday = new Date(now);
+    nextMonday.setDate(now.getDate() + daysUntilNextMonday);
+    const nextSunday = new Date(nextMonday);
+    nextSunday.setDate(nextMonday.getDate() + 6);
+    return { nextMonday, nextSunday };
+}
+
+function renderNextWeekRange() {
+    const el = document.getElementById('next-week-range');
+    if (!el) return;
+    const { nextMonday, nextSunday } = nextWeekRange();
+    const fmt = d => `${d.getMonth() + 1}/${d.getDate()}`;
+    el.textContent = `${fmt(nextMonday)}(월) ~ ${fmt(nextSunday)}(일)`;
+}
+
 async function openScheduleSheet() {
     await loadSchedules();
     openSheet('schedule-sheet');

@@ -163,6 +163,9 @@ function rosterLockedCard(m, record) {
                 <button onclick="event.stopPropagation(); unlockRosterCard(${m.id})" class="w-7 h-7 flex items-center justify-center bg-white rounded-full text-gray-400 hover:text-toss-blue shadow-sm border border-gray-100 shrink-0" title="잘못 처리했다면 다시 선택">
                     <i class="fa-solid fa-pen text-[10px]"></i>
                 </button>
+                <button onclick="event.stopPropagation(); deleteRosterRecord(${m.id}, ${record.id})" class="w-7 h-7 flex items-center justify-center bg-white rounded-full text-gray-400 hover:text-toss-red shadow-sm border border-gray-100 shrink-0" title="완전히 삭제하고 미등록으로 되돌리기">
+                    <i class="fa-solid fa-xmark text-[10px]"></i>
+                </button>
             </div>
         </div>
     `;
@@ -172,6 +175,18 @@ function rosterLockedCard(m, record) {
 function unlockRosterCard(memberId) {
     delete state.todayRecordByMember[memberId];
     renderAdminRoster();
+}
+
+/** 잘못 처리한 기록을 서버에서 완전히 삭제해 해당 부원을 미등록 상태로 되돌린다. */
+async function deleteRosterRecord(memberId, recordId) {
+    try {
+        await api(`/api/attendance-records/${recordId}`, { method: 'DELETE' });
+        delete state.todayRecordByMember[memberId];
+        renderAdminRoster();
+        showToast('기록을 삭제했습니다.');
+    } catch (e) {
+        showToast(e.message);
+    }
 }
 
 function resetRosterButtons(memberId) {

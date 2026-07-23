@@ -71,6 +71,14 @@ public class AttendanceService {
         return AttendanceRecordResponse.from(record);
     }
 
+    /** 임원 관리 > 대면 출석 체크: 잘못 처리한 기록을 완전히 삭제해 미등록 상태로 되돌린다. */
+    @Transactional
+    public void delete(Long recordId) {
+        AttendanceRecord record = attendanceRecordRepository.findById(recordId)
+                .orElseThrow(() -> ApiException.notFound("존재하지 않는 출석 기록입니다. id=" + recordId));
+        attendanceRecordRepository.delete(record);
+    }
+
     @Transactional
     public AttendanceRecordResponse faceCheck(FaceCheckRequest request) {
         Member member = getMember(request.memberId());

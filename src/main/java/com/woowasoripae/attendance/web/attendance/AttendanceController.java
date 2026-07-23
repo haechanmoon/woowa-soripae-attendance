@@ -11,6 +11,7 @@ import java.time.YearMonth;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -57,6 +58,13 @@ public class AttendanceController {
     @PutMapping("/api/attendance-records/face-check")
     public AttendanceRecordResponse faceCheck(@Valid @RequestBody FaceCheckRequest request) {
         return attendanceService.faceCheck(request);
+    }
+
+    /** 임원 관리: 잘못 처리한 출석 기록을 완전히 삭제해 미등록 상태로 되돌린다. */
+    @DeleteMapping("/api/attendance-records/{recordId}")
+    public ResponseEntity<Void> delete(@PathVariable Long recordId) {
+        attendanceService.delete(recordId);
+        return ResponseEntity.noContent().build();
     }
 
     /** 임원 관리 > 사진 승인 대기열 목록. */
