@@ -5,6 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>소리패 출석 앱</title>
 
+    <!-- 부원 전용 앱: 검색엔진 노출 방지 (이름 클릭만으로 접속되는 구조라 외부 노출 시 개인정보 위험) -->
+    <meta name="robots" content="noindex, nofollow">
+
+    <!-- PWA: 홈 화면에 추가하면 아이콘으로 실행되는 앱처럼 동작 -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#3182F6">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="소리패">
+
     <!-- 카카오톡 인앱 브라우저 강제 탈출 스크립트 -->
     <script>
         if (navigator.userAgent.match(/KAKAOTALK/i)) {
@@ -17,31 +28,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
 
-    <style>
-        body {
-            font-family: 'Pretendard', 'Apple SD Gothic Neo', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #F2F4F6;
-            margin: 0;
-            padding: 0;
-            -webkit-tap-highlight-color: transparent;
-            overscroll-behavior-y: none;
-        }
-        .app-container {
-            max-width: 480px;
-            margin: 0 auto;
-            background-color: #F2F4F6;
-            min-height: 100vh;
-            position: relative;
-            box-shadow: 0 0 20px rgba(0,0,0,0.05);
-            padding-bottom: 90px;
-            overflow-x: hidden;
-        }
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .shadow-toss { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04); }
-        .bottom-sheet { transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); }
-        .overlay-bg { transition: opacity 0.3s ease; }
-    </style>
+    <link rel="stylesheet" href="/css/app.css">
     <script>
         tailwind.config = {
             theme: {
@@ -97,15 +84,6 @@
                             <span class="text-lg font-medium opacity-90">원</span>
                         </div>
                         <div id="fine-badges" class="flex flex-col space-y-1 mt-3"></div>
-
-                        <div class="flex space-x-2 mt-5">
-                            <a href="https://qr.kakaopay.com/FERlVOZMq" target="_blank" class="flex-1 text-center bg-white text-toss-blue text-xs font-black px-3 py-3 rounded-xl shadow-sm active:scale-95 transition-transform">
-                                <i class="fa-solid fa-comment-dollar mr-1"></i> 송금하기
-                            </a>
-                            <button id="btn-remit-done" onclick="notifyRemittance()" class="flex-1 text-center bg-white/20 text-white text-xs font-black px-3 py-3 rounded-xl backdrop-blur-sm active:scale-95 transition-transform border border-white/30">
-                                <i class="fa-solid fa-check mr-1"></i> 송금 완료 알림
-                            </button>
-                        </div>
                     </div>
                 </div>
 
@@ -162,7 +140,7 @@
                         <div class="bg-green-50 p-3.5 rounded-2xl border border-green-100 flex items-start space-x-2">
                             <i class="fa-solid fa-circle-info text-toss-green mt-0.5 text-sm"></i>
                             <p class="text-[11px] font-bold text-toss-green leading-snug">
-                                오늘 정규 연습시간은 <span class="font-black text-green-700">15시~17시30분</span> 입니다.<br>가급적이면 코어타임 연습으로 참여해주세요!
+                                오늘 정규 연습시간은 <span class="font-black text-green-700">13시~15시</span> 입니다.<br>가급적이면 코어타임 연습으로 참여해주세요!
                             </p>
                         </div>
 
@@ -207,6 +185,22 @@
                 </div>
             </div>
 
+            <div id="tab-song" class="space-y-4 tab-content hidden pt-2">
+                <div class="mb-2 px-1">
+                    <h2 class="text-2xl font-black text-toss-text mb-1">합주 시간표</h2>
+                    <p class="text-xs font-bold text-toss-subText">내가 배정된 곡의 합주 시간을 팀원들과 맞춰보세요.</p>
+                </div>
+
+                <div id="song-empty-state" class="hidden text-center py-16 bg-toss-card rounded-[28px] shadow-toss">
+                    <div class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <i class="fa-solid fa-music text-2xl text-gray-300"></i>
+                    </div>
+                    <p class="text-toss-subText font-bold">아직 배정된 곡이 없습니다.</p>
+                </div>
+
+                <div id="song-list" class="space-y-3 pb-4"></div>
+            </div>
+
             <div id="tab-admin" class="space-y-4 tab-content hidden pt-2">
                 <div class="flex justify-between items-center mb-6 px-1">
                     <h2 class="text-2xl font-black text-toss-text">임원 관리</h2>
@@ -237,7 +231,7 @@
                     <div class="bg-toss-card rounded-[28px] p-6 shadow-toss">
                         <div class="mb-5">
                             <h3 class="text-base font-black text-toss-text">오늘의 대면 출석 명단</h3>
-                            <p class="text-xs font-bold text-toss-blue mt-1">15:00 코어타임 기준 · 오늘 이미 사진 인증/대면 처리된 부원은 자동으로 잠깁니다</p>
+                            <p class="text-xs font-bold text-toss-blue mt-1">13:00 코어타임 기준 · 오늘 이미 사진 인증/대면 처리된 부원은 자동으로 잠깁니다</p>
                         </div>
                         <div id="admin-roster-list" class="space-y-4"></div>
                     </div>
@@ -253,6 +247,10 @@
             <button onclick="handleTabClick('certify')" id="nav-certify" class="nav-btn flex flex-col items-center justify-center w-20 text-gray-400 hover:text-gray-600 transition-colors pt-3">
                 <i class="fa-solid fa-camera text-xl mb-1.5"></i>
                 <span class="text-[10px] font-black">인증하기</span>
+            </button>
+            <button onclick="handleTabClick('song')" id="nav-song" class="nav-btn flex flex-col items-center justify-center w-20 text-gray-400 hover:text-gray-600 transition-colors pt-3">
+                <i class="fa-solid fa-music text-xl mb-1.5"></i>
+                <span class="text-[10px] font-black">합주</span>
             </button>
             <button onclick="handleTabClick('admin')" id="nav-admin" class="nav-btn flex flex-col items-center justify-center w-20 text-gray-400 hover:text-gray-600 transition-colors pt-3 relative">
                 <i class="fa-solid fa-shield-halved text-xl mb-1.5"></i>
@@ -287,7 +285,7 @@
             <div class="bg-blue-50/70 p-3.5 rounded-2xl border border-blue-100 flex items-start space-x-2 mb-5 shrink-0">
                 <i class="fa-solid fa-circle-info text-toss-blue mt-0.5 text-sm"></i>
                 <p class="text-[11px] font-bold text-toss-blue leading-snug">
-                    정규 연습시간은 <span class="font-black">15시~17시30분</span> 입니다.<br>가급적이면 15시 연습으로 참여해주세요!
+                    정규 연습시간은 <span class="font-black">13시~15시</span> 입니다.<br>가급적이면 13시 연습으로 참여해주세요!
                 </p>
             </div>
 
@@ -329,6 +327,23 @@
 
             <button onclick="closeAllModals()" class="w-full bg-gray-800 text-white font-black text-lg p-4 rounded-2xl active:bg-gray-900 transition-colors shrink-0">
                 완료 및 닫기
+            </button>
+        </div>
+
+        <div id="song-sheet" class="bottom-sheet fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] bg-white rounded-t-[32px] p-6 z-[55] translate-y-full shadow-[0_-10px_40px_rgba(0,0,0,0.1)] flex flex-col max-h-[90vh]">
+            <div class="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6 shrink-0"></div>
+            <h3 class="text-2xl font-black text-toss-text mb-1 shrink-0" id="song-sheet-title">-</h3>
+            <p class="text-xs font-bold text-toss-subText mb-5 shrink-0" id="song-sheet-artist"></p>
+
+            <div class="mb-5 shrink-0">
+                <p class="text-xs font-bold text-toss-subText mb-2 ml-1">팀 구성</p>
+                <div id="song-sheet-members" class="flex flex-wrap gap-1.5"></div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto hide-scrollbar mb-4" id="song-sheet-poll-area"></div>
+
+            <button onclick="closeAllModals()" class="w-full bg-gray-800 text-white font-black text-lg p-4 rounded-2xl active:bg-gray-900 transition-colors shrink-0">
+                닫기
             </button>
         </div>
 
@@ -383,778 +398,14 @@
         </div>
     </div>
 
-    <script>
-        // file://로 직접 열었을 때만 배포된 EC2 API를 바라보고, 그 외(Spring Boot가 서빙하는 경우)엔 같은 오리진(상대경로)을 사용한다.
-        const API_BASE = location.protocol === 'file:' ? 'http://13.209.69.115:8080' : '';
-
-        const state = {
-            member: null,
-            isAdminAuthenticated: false,
-            calYear: new Date().getFullYear(),
-            calMonth: new Date().getMonth() + 1,
-            calendarRecords: [],
-            allMembers: [],
-        };
-
-        const CORE_START = '15:00';
-        const CORE_END = '17:30';
-        const DAY_LABEL = { MONDAY: '월', TUESDAY: '화', WEDNESDAY: '수', THURSDAY: '목', FRIDAY: '금', SATURDAY: '토', SUNDAY: '일' };
-
-        async function api(path, options = {}) {
-            const isForm = options.body instanceof FormData;
-            const headers = isForm ? (options.headers || {}) : { 'Content-Type': 'application/json', ...(options.headers || {}) };
-            const res = await fetch(API_BASE + path, { ...options, headers });
-            if (!res.ok) {
-                let message = `요청 실패 (${res.status})`;
-                try {
-                    const body = await res.json();
-                    if (body && body.message) message = body.message;
-                } catch (e) { /* no json body */ }
-                throw new Error(message);
-            }
-            if (res.status === 204) return null;
-            const text = await res.text();
-            return text ? JSON.parse(text) : null;
-        }
-
-        function formatTime(t) {
-            return t ? t.substring(0, 5) : '';
-        }
-
-        function formatDateTime(dt) {
-            if (!dt) return '';
-            const timePart = dt.split('T')[1] || '';
-            return timePart.substring(0, 8);
-        }
-
-        function todayIso() {
-            const d = new Date();
-            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        }
-
-        function formatTodayKorean() {
-            const d = new Date();
-            const days = ['일', '월', '화', '수', '목', '금', '토'];
-            return `${d.getFullYear()}. ${String(d.getMonth() + 1).padStart(2, '0')}. ${String(d.getDate()).padStart(2, '0')} (${days[d.getDay()]})`;
-        }
-
-        function updateClock() {
-            const now = new Date();
-            const timeStr = now.toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            const clockEl = document.getElementById('current-clock');
-            const submitEl = document.getElementById('submit-time-text');
-            if (clockEl) clockEl.textContent = timeStr;
-            if (submitEl) submitEl.textContent = timeStr;
-        }
-        setInterval(updateClock, 1000);
-        updateClock();
-
-        function showToast(msg) {
-            const toast = document.getElementById('toast');
-            toast.textContent = msg;
-            toast.style.opacity = '1';
-            toast.style.transform = 'translate(-50%, 0)';
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                toast.style.transform = 'translate(-50%, -20px)';
-            }, 2500);
-        }
-
-        // ---------- 로그인(본인 선택) ----------
-
-        async function renderLoginScreen() {
-            const statusEl = document.getElementById('login-status');
-            const listEl = document.getElementById('login-member-list');
-            statusEl.textContent = '명단을 불러오는 중...';
-            listEl.innerHTML = '';
-            try {
-                const members = await api('/api/members');
-                state.allMembers = members;
-                statusEl.textContent = '';
-                const officers = members.filter(m => m.officer);
-                const regulars = members.filter(m => !m.officer);
-
-                if (members.length === 0) {
-                    listEl.innerHTML = `<p class="text-xs font-bold text-gray-400 text-center py-8">등록된 부원이 없습니다.</p>`;
-                    return;
-                }
-                if (officers.length) {
-                    listEl.insertAdjacentHTML('beforeend', `<p class="text-xs font-black text-toss-subText mb-2">임원진</p>`);
-                    officers.forEach(m => listEl.insertAdjacentHTML('beforeend', loginMemberButton(m)));
-                }
-                if (regulars.length) {
-                    listEl.insertAdjacentHTML('beforeend', `<p class="text-xs font-black text-toss-subText mb-2 mt-5">부원</p>`);
-                    regulars.forEach(m => listEl.insertAdjacentHTML('beforeend', loginMemberButton(m)));
-                }
-            } catch (e) {
-                statusEl.textContent = `명단을 불러오지 못했습니다: ${e.message}`;
-                listEl.innerHTML = `<button onclick="renderLoginScreen()" class="w-full bg-white text-toss-blue font-black text-sm py-3 rounded-2xl border border-blue-100 shadow-sm">다시 시도</button>`;
-            }
-        }
-
-        function loginMemberButton(m) {
-            return `<button onclick="selectLoginMember(${m.id})" class="w-full flex items-center space-x-3 bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 active:scale-[0.98] transition-transform mb-2">
-                <div class="w-9 h-9 rounded-full bg-blue-50 flex items-center justify-center text-toss-blue font-black text-sm shrink-0">${m.name.charAt(0)}</div>
-                <span class="font-black text-toss-text">${m.name}</span>
-                <span class="text-[10px] font-bold text-toss-subText bg-gray-50 px-2 py-1 rounded-full border border-gray-100">${m.part}</span>
-                ${m.position ? `<span class="ml-auto text-[10px] font-black text-toss-blue bg-blue-50 px-2 py-1 rounded-full">${m.position}</span>` : ''}
-            </button>`;
-        }
-
-        function selectLoginMember(id) {
-            state.member = state.allMembers.find(m => m.id === id);
-            localStorage.setItem('soripae_member', JSON.stringify(state.member));
-            startApp();
-        }
-
-        function logout() {
-            if (!confirm('다른 계정으로 전환할까요?')) return;
-            localStorage.removeItem('soripae_member');
-            location.reload();
-        }
-
-        // ---------- 앱 진입 ----------
-
-        async function startApp() {
-            document.getElementById('login-screen').classList.add('hidden');
-            document.getElementById('app-root').classList.remove('hidden');
-            document.getElementById('header-name').textContent = state.member.name;
-            document.getElementById('header-avatar-img').textContent = state.member.name.charAt(0);
-            document.getElementById('header-date').textContent = formatTodayKorean();
-            document.getElementById('nav-admin').classList.toggle('hidden', !state.member.officer);
-            switchTab('home');
-            await Promise.all([loadFineSummary(), loadCalendar()]);
-        }
-
-        function handleTabClick(targetTab) {
-            if (targetTab === 'admin') {
-                if (!state.isAdminAuthenticated) {
-                    openPwModal();
-                    return;
-                }
-                switchTab('admin');
-                loadAdminQueue();
-                loadAdminRoster();
-                return;
-            }
-            switchTab(targetTab);
-            if (targetTab === 'certify') { loadMemberHistory(); loadCertifySchedules(); }
-            if (targetTab === 'home') { loadFineSummary(); loadCalendar(); }
-        }
-
-        function switchTab(tabName) {
-            document.querySelectorAll('.tab-content').forEach(el => {
-                el.classList.add('hidden');
-                el.classList.remove('active');
-            });
-            document.querySelectorAll('.nav-btn').forEach(el => {
-                el.classList.remove('text-toss-blue');
-                el.classList.add('text-gray-400');
-            });
-            document.getElementById(`tab-${tabName}`).classList.remove('hidden');
-            document.getElementById(`tab-${tabName}`).classList.add('active');
-            document.getElementById(`nav-${tabName}`).classList.remove('text-gray-400');
-            document.getElementById(`nav-${tabName}`).classList.add('text-toss-blue');
-        }
-
-        function switchAdminMenu(menu) {
-            const btnQ = document.getElementById('btn-admin-queue');
-            const btnF = document.getElementById('btn-admin-face');
-            if (menu === 'queue') {
-                document.getElementById('admin-view-queue').classList.remove('hidden');
-                document.getElementById('admin-view-face').classList.add('hidden');
-                btnQ.className = "flex-1 py-2.5 text-sm font-black bg-white text-toss-text rounded-xl shadow-sm transition-all";
-                btnF.className = "flex-1 py-2.5 text-sm font-black text-gray-400 rounded-xl transition-all";
-                loadAdminQueue();
-            } else {
-                document.getElementById('admin-view-queue').classList.add('hidden');
-                document.getElementById('admin-view-face').classList.remove('hidden');
-                btnF.className = "flex-1 py-2.5 text-sm font-black bg-white text-toss-text rounded-xl shadow-sm transition-all";
-                btnQ.className = "flex-1 py-2.5 text-sm font-black text-gray-400 rounded-xl transition-all";
-                loadAdminRoster();
-            }
-        }
-
-        function openPwModal() {
-            document.getElementById('admin-pw-input').value = '';
-            document.getElementById('overlay-heavy').classList.remove('hidden');
-            document.getElementById('admin-pw-modal').classList.remove('hidden');
-            setTimeout(() => {
-                document.getElementById('overlay-heavy').style.opacity = '1';
-                const modal = document.getElementById('admin-pw-modal');
-                modal.style.opacity = '1';
-                modal.style.transform = 'translate(-50%, -50%) scale(1)';
-            }, 10);
-        }
-
-        function closePwModal() {
-            document.getElementById('overlay-heavy').style.opacity = '0';
-            const modal = document.getElementById('admin-pw-modal');
-            modal.style.opacity = '0';
-            modal.style.transform = 'translate(-50%, -50%) scale(0.95)';
-            setTimeout(() => {
-                document.getElementById('overlay-heavy').classList.add('hidden');
-                modal.classList.add('hidden');
-            }, 300);
-        }
-
-        async function verifyAdminPw() {
-            const pw = document.getElementById('admin-pw-input').value;
-            try {
-                await api('/api/admin/auth', { method: 'POST', body: JSON.stringify({ password: pw }) });
-                state.isAdminAuthenticated = true;
-                document.getElementById('admin-lock-icon').classList.remove('text-gray-300');
-                document.getElementById('admin-lock-icon').classList.add('text-toss-blue', 'fa-unlock');
-                closePwModal();
-                showToast('임원진 인증이 완료되었습니다.');
-                switchTab('admin');
-                loadAdminQueue();
-                loadAdminRoster();
-            } catch (e) {
-                showToast('비밀번호가 틀렸습니다.');
-            }
-        }
-
-        function closeAllModals() {
-            document.querySelectorAll('.overlay-bg').forEach(el => el.style.opacity = '0');
-            document.querySelectorAll('.bottom-sheet').forEach(sheet => {
-                sheet.style.transform = 'translate(-50%, 100%)';
-            });
-            setTimeout(() => {
-                document.querySelectorAll('.overlay-bg').forEach(el => el.classList.add('hidden'));
-            }, 300);
-        }
-
-        function openSheet(id) {
-            document.getElementById('overlay').classList.remove('hidden');
-            setTimeout(() => {
-                document.getElementById('overlay').style.opacity = '1';
-                document.getElementById(id).style.transform = 'translate(-50%, 0)';
-            }, 10);
-        }
-
-        // ---------- 홈: 벌금 카드 / 캘린더 ----------
-
-        async function loadFineSummary() {
-            try {
-                const data = await api(`/api/members/${state.member.id}/fines`);
-                document.getElementById('fine-total').textContent = data.totalFine.toLocaleString();
-                const badges = document.getElementById('fine-badges');
-                badges.innerHTML = '';
-                if (data.absentCount > 0) {
-                    badges.insertAdjacentHTML('beforeend', `<span class="text-xs bg-white/20 inline-block px-3 py-1 rounded-full backdrop-blur-sm self-start">결석 ${data.absentCount}회 (${data.absentFine.toLocaleString()}원)</span>`);
-                }
-                if (data.lateTotalMinutes > 0) {
-                    badges.insertAdjacentHTML('beforeend', `<span class="text-xs bg-white/20 inline-block px-3 py-1 rounded-full backdrop-blur-sm self-start">지각 총 ${data.lateTotalMinutes}분 (${data.lateFine.toLocaleString()}원)</span>`);
-                }
-                if (data.absentCount === 0 && data.lateTotalMinutes === 0) {
-                    badges.insertAdjacentHTML('beforeend', `<span class="text-xs bg-white/20 inline-block px-3 py-1 rounded-full backdrop-blur-sm self-start">지각/결석 없음 🎉</span>`);
-                }
-            } catch (e) {
-                showToast(e.message);
-            }
-        }
-
-        async function notifyRemittance() {
-            try {
-                await api(`/api/members/${state.member.id}/remittance-notifications`, { method: 'POST' });
-                const btn = document.getElementById('btn-remit-done');
-                btn.innerHTML = `<i class="fa-solid fa-hourglass-half mr-1"></i> 확인 대기중`;
-                btn.className = "flex-1 text-center bg-blue-900/50 text-white/80 text-xs font-black px-3 py-3 rounded-xl backdrop-blur-sm pointer-events-none transition-all";
-                showToast('총무에게 송금 확인 요청을 보냈습니다.');
-            } catch (e) {
-                showToast(e.message);
-            }
-        }
-
-        async function loadCalendar() {
-            try {
-                state.calendarRecords = await api(`/api/members/${state.member.id}/attendance-records?year=${state.calYear}&month=${state.calMonth}`);
-                renderCalendar();
-            } catch (e) {
-                showToast(e.message);
-            }
-        }
-
-        function changeMonth(delta) {
-            state.calMonth += delta;
-            if (state.calMonth > 12) { state.calMonth = 1; state.calYear++; }
-            if (state.calMonth < 1) { state.calMonth = 12; state.calYear--; }
-            loadCalendar();
-        }
-
-        function statusMeta(status, lateMinutes) {
-            switch (status) {
-                case 'PRESENT': return { label: '정상 출석', dot: 'bg-toss-green text-white', badge: 'bg-green-50 text-toss-green border-green-100' };
-                case 'LATE': return { label: `지각 (${lateMinutes}분)`, dot: 'bg-orange-400 text-white', badge: 'bg-orange-50 text-orange-500 border-orange-100' };
-                case 'ABSENT': return { label: '결석', dot: 'bg-toss-red text-white', badge: 'bg-red-50 text-toss-red border-red-100' };
-                case 'PENDING': return { label: '예정 (심사중)', dot: 'border-2 border-toss-blue text-toss-blue bg-blue-50', badge: 'bg-blue-50 text-toss-blue border-blue-100' };
-                case 'REJECTED': return { label: '반려됨', dot: 'bg-gray-300 text-white', badge: 'bg-gray-100 text-gray-500 border-gray-200' };
-                default: return { label: status, dot: 'bg-gray-200 text-white', badge: 'bg-gray-100 text-gray-500 border-gray-200' };
-            }
-        }
-
-        function renderCalendar() {
-            document.getElementById('calendar-title').textContent = `${state.calMonth}월`;
-            const grid = document.getElementById('calendar-grid');
-            grid.innerHTML = '';
-
-            const firstDay = new Date(state.calYear, state.calMonth - 1, 1).getDay();
-            const daysInMonth = new Date(state.calYear, state.calMonth, 0).getDate();
-            for (let i = 0; i < firstDay; i++) grid.innerHTML += `<div></div>`;
-
-            const byDay = {};
-            state.calendarRecords.forEach(r => {
-                const day = parseInt(r.practiceDate.split('-')[2], 10);
-                byDay[day] = r;
-            });
-
-            for (let day = 1; day <= daysInMonth; day++) {
-                const record = byDay[day];
-                let classes = "text-sm font-black text-toss-text w-8 h-8 mx-auto flex items-center justify-center rounded-full cursor-pointer transition";
-                let clickEvt = '';
-                if (record) {
-                    const meta = statusMeta(record.status, record.lateMinutes);
-                    classes += " " + meta.dot + " shadow-sm active:scale-90";
-                    clickEvt = `onclick="openCalSheet(${day})"`;
-                }
-                grid.innerHTML += `<div class="${classes}" ${clickEvt}>${day}</div>`;
-            }
-        }
-
-        function openCalSheet(day) {
-            const record = state.calendarRecords.find(r => parseInt(r.practiceDate.split('-')[2], 10) === day);
-            if (!record) return;
-            document.getElementById('cal-date-title').textContent = `${state.calMonth}월 ${day}일`;
-            document.getElementById('cal-member-name').textContent = `${record.memberName} 님의 합주 기록입니다.`;
-            const meta = statusMeta(record.status, record.lateMinutes);
-            const statusEl = document.getElementById('cal-status');
-            statusEl.textContent = meta.label;
-            statusEl.className = 'text-base font-black px-3 py-1 rounded-lg border ' + meta.badge;
-            document.getElementById('cal-time').textContent = `${formatTime(record.scheduledStartTime)} - ${formatTime(record.scheduledEndTime)}`;
-            openSheet('cal-sheet');
-        }
-
-        // ---------- 스케줄 등록 ----------
-
-        async function openScheduleSheet() {
-            await loadSchedules();
-            openSheet('schedule-sheet');
-        }
-
-        async function loadSchedules() {
-            try {
-                const list = await api(`/api/members/${state.member.id}/schedules`);
-                renderMySchedules(list);
-            } catch (e) {
-                showToast(e.message);
-            }
-        }
-
-        function renderMySchedules(list) {
-            const el = document.getElementById('my-schedule-list');
-            el.innerHTML = '';
-            if (list.length === 0) {
-                el.innerHTML = `<div class="p-5 bg-gray-50 rounded-2xl border border-gray-100 text-center text-xs font-bold text-gray-400">등록된 스케줄이 없습니다.</div>`;
-                return;
-            }
-            list.forEach(s => {
-                const text = `${DAY_LABEL[s.dayOfWeek]}요일 ${formatTime(s.startTime)} - ${formatTime(s.endTime)}`;
-                el.insertAdjacentHTML('beforeend', `
-                    <div class="flex justify-between items-center bg-blue-50 p-4 rounded-2xl border border-blue-100/50">
-                        <span class="text-sm font-black text-toss-blue"><i class="fa-solid fa-check mr-2 opacity-50"></i>${text}</span>
-                        <button onclick="deleteSchedule(${s.id})" class="w-8 h-8 bg-white rounded-full flex items-center justify-center text-gray-400 hover:text-toss-red shadow-sm transition"><i class="fa-solid fa-xmark text-sm"></i></button>
-                    </div>
-                `);
-            });
-        }
-
-        async function addSchedule() {
-            const dayOfWeek = document.getElementById('sched-day').value;
-            const startTime = `${document.getElementById('sched-hour').value}:${document.getElementById('sched-minute').value}`;
-            try {
-                await api(`/api/members/${state.member.id}/schedules`, {
-                    method: 'POST',
-                    body: JSON.stringify({ dayOfWeek, startTime })
-                });
-                await loadSchedules();
-                await loadCalendar();
-                showToast('스케줄 등록 및 캘린더 연동 완료!');
-            } catch (e) {
-                showToast(e.message);
-            }
-        }
-
-        async function deleteSchedule(id) {
-            try {
-                await api(`/api/members/${state.member.id}/schedules/${id}`, { method: 'DELETE' });
-                await loadSchedules();
-                await loadCalendar();
-            } catch (e) {
-                showToast(e.message);
-            }
-        }
-
-        // ---------- 인증하기 ----------
-
-        async function loadCertifySchedules() {
-            const sel = document.getElementById('certify-schedule');
-            sel.innerHTML = '';
-            let todaysSlots = [];
-            try {
-                const list = await api(`/api/members/${state.member.id}/schedules`);
-                todaysSlots = list.filter(s => s.practiceDate === todayIso());
-            } catch (e) {
-                showToast(e.message);
-            }
-
-            const hasCore = todaysSlots.some(s => formatTime(s.startTime) === CORE_START);
-            if (!hasCore) {
-                sel.insertAdjacentHTML('beforeend', `<option value="${CORE_START}">${CORE_START} - ${CORE_END} (코어타임)</option>`);
-            }
-            todaysSlots
-                .slice()
-                .sort((a, b) => a.startTime.localeCompare(b.startTime))
-                .forEach(s => {
-                    const start = formatTime(s.startTime);
-                    const label = start === CORE_START
-                        ? `${start} - ${formatTime(s.endTime)} (코어타임)`
-                        : `${start} - ${formatTime(s.endTime)}`;
-                    sel.insertAdjacentHTML('beforeend', `<option value="${start}">${label}</option>`);
-                });
-        }
-
-        function previewPhoto(input) {
-            if (input.files && input.files[0]) {
-                const reader = new FileReader();
-                reader.onload = function (e) {
-                    document.getElementById('photo-preview').src = e.target.result;
-                    document.getElementById('photo-preview').classList.remove('hidden');
-                    document.getElementById('upload-prompt').classList.add('hidden');
-                };
-                reader.readAsDataURL(input.files[0]);
-            }
-        }
-
-        async function submitAttendance() {
-            const scheduledVal = document.getElementById('certify-schedule').value;
-            const fileInput = document.getElementById('photo-upload');
-            if (!fileInput.files || !fileInput.files[0]) return showToast('인증 사진을 터치하여 올려주세요.');
-
-            const formData = new FormData();
-            formData.append('memberId', state.member.id);
-            formData.append('scheduledStartTime', scheduledVal);
-            formData.append('photo', fileInput.files[0]);
-
-            try {
-                await api('/api/attendance-records', { method: 'POST', body: formData });
-                fileInput.value = '';
-                document.getElementById('photo-preview').classList.add('hidden');
-                document.getElementById('upload-prompt').classList.remove('hidden');
-                showToast('인증 요청 완료! 임원 승인을 기다려주세요.');
-                await loadMemberHistory();
-                await loadCalendar();
-                switchTab('home');
-            } catch (e) {
-                showToast(e.message);
-            }
-        }
-
-        function historyStatusMeta(status, lateMinutes) {
-            switch (status) {
-                case 'PENDING': return { label: '심사중', badge: 'text-gray-500 bg-gray-100 border-gray-200' };
-                case 'PRESENT': return { label: '승인됨', badge: 'text-toss-green bg-green-50 border-green-100' };
-                case 'LATE': return { label: `승인됨 (${lateMinutes}분 지각)`, badge: 'text-toss-green bg-green-50 border-green-100' };
-                case 'ABSENT': return { label: '결석 처리', badge: 'text-toss-red bg-red-50 border-red-100' };
-                case 'REJECTED': return { label: '반려됨', badge: 'text-toss-red bg-red-50 border-red-100' };
-                default: return { label: status, badge: 'text-gray-500 bg-gray-100 border-gray-200' };
-            }
-        }
-
-        async function loadMemberHistory() {
-            try {
-                const list = await api(`/api/members/${state.member.id}/attendance-records/history`);
-                renderMemberHistory(list);
-            } catch (e) {
-                showToast(e.message);
-            }
-        }
-
-        function renderMemberHistory(list) {
-            const el = document.getElementById('member-history-list');
-            el.innerHTML = '';
-            if (list.length === 0) {
-                el.innerHTML = '<p class="text-sm font-bold text-gray-400 text-center py-8 bg-gray-50 rounded-3xl border border-gray-100">아직 인증 내역이 없습니다.</p>';
-                return;
-            }
-            list.forEach(r => {
-                const meta = historyStatusMeta(r.status, r.lateMinutes);
-                const photoSrc = r.photoUrl ? (r.photoUrl.startsWith('http') ? r.photoUrl : API_BASE + r.photoUrl) : 'https://placehold.co/100x100/E8F3FF/3182F6?text=%20';
-                el.insertAdjacentHTML('beforeend', `
-                    <div class="flex items-center justify-between p-4 bg-white rounded-[24px] shadow-sm border border-gray-100">
-                        <div class="flex items-center space-x-4">
-                            <img src="${photoSrc}" class="w-14 h-14 rounded-2xl object-cover border border-gray-100">
-                            <div>
-                                <p class="text-sm font-black text-toss-text mb-1">${formatTime(r.scheduledStartTime)} - ${formatTime(r.scheduledEndTime)}</p>
-                                <p class="text-[11px] font-bold text-toss-subText bg-gray-50 inline-block px-2 py-0.5 rounded-md">${r.practiceDate}</p>
-                            </div>
-                        </div>
-                        <span class="px-3 py-1.5 rounded-lg text-[10px] font-black border ${meta.badge}">${meta.label}</span>
-                    </div>
-                `);
-            });
-        }
-
-        // ---------- 임원진: 사진 승인 대기열 ----------
-
-        async function loadAdminQueue() {
-            try {
-                const list = await api('/api/attendance-records/pending');
-                renderAdminRequests(list);
-            } catch (e) {
-                showToast(e.message);
-            }
-        }
-
-        function renderAdminRequests(list) {
-            const el = document.getElementById('admin-request-list');
-            el.innerHTML = '';
-            document.getElementById('pending-count').textContent = `${list.length}건`;
-
-            if (list.length === 0) {
-                document.getElementById('admin-empty-state').classList.remove('hidden');
-                return;
-            }
-            document.getElementById('admin-empty-state').classList.add('hidden');
-
-            list.forEach(req => {
-                const autoLate = req.suggestedLateMinutes || 0;
-                const photoSrc = req.photoUrl ? (req.photoUrl.startsWith('http') ? req.photoUrl : API_BASE + req.photoUrl) : '';
-                el.insertAdjacentHTML('beforeend', `
-                    <div class="bg-toss-card rounded-[28px] overflow-hidden shadow-toss border border-gray-100" id="req-card-${req.id}">
-                        <div class="h-48 bg-gray-100 relative">
-                            <img src="${photoSrc}" class="w-full h-full object-cover">
-                            <div class="absolute bottom-3 left-3 bg-white/90 backdrop-blur-md px-3.5 py-2.5 rounded-xl text-xs font-black flex flex-col space-y-1 shadow-sm border border-gray-100/50">
-                                <span class="text-toss-subText">예정 스케줄: ${formatTime(req.scheduledStartTime)}</span>
-                                <span class="${autoLate > 0 ? 'text-toss-red' : 'text-toss-green'}">제출 시각: ${formatDateTime(req.submittedAt)}</span>
-                            </div>
-                        </div>
-                        <div class="p-6">
-                            <div class="flex justify-between items-center mb-4">
-                                <span class="text-xl font-black text-toss-text">${req.memberName}</span>
-                            </div>
-                            <div class="bg-red-50/50 p-4 rounded-2xl flex items-center justify-between mb-5 border border-red-100/50">
-                                <label class="text-sm font-black text-toss-red flex flex-col">
-                                    <span>지각 (분) 계산기</span>
-                                    <span class="text-[10px] font-bold text-red-400 mt-0.5">업로드 시간 기준 자동 계산됨</span>
-                                </label>
-                                <div class="flex items-center bg-white px-3 py-2 rounded-xl shadow-sm border border-red-100">
-                                    <input type="number" id="late-min-${req.id}" min="0" value="${autoLate}" class="w-12 text-right bg-transparent text-toss-red font-black text-lg outline-none">
-                                    <span class="text-xs font-black text-toss-red ml-1">분</span>
-                                </div>
-                            </div>
-                            <div class="flex space-x-3">
-                                <button onclick="handleReject(${req.id})" class="flex-[1] py-4 bg-gray-100 text-toss-subText font-black rounded-2xl active:bg-gray-200 transition-colors">반려</button>
-                                <button onclick="handleApprove(${req.id})" class="flex-[2] py-4 bg-toss-blue text-white font-black rounded-2xl shadow-[0_4px_14px_rgba(49,130,246,0.3)] active:bg-blue-600 transition-colors">승인 확정</button>
-                            </div>
-                        </div>
-                    </div>
-                `);
-            });
-        }
-
-        async function handleApprove(id) {
-            const lateMinutes = parseInt(document.getElementById(`late-min-${id}`).value) || 0;
-            try {
-                await api(`/api/attendance-records/${id}/approve`, { method: 'PATCH', body: JSON.stringify({ lateMinutes }) });
-                showToast('승인 완료');
-                await loadAdminQueue();
-            } catch (e) {
-                showToast(e.message);
-            }
-        }
-
-        async function handleReject(id) {
-            try {
-                await api(`/api/attendance-records/${id}/reject`, { method: 'PATCH' });
-                showToast('반려 처리됨');
-                await loadAdminQueue();
-            } catch (e) {
-                showToast(e.message);
-            }
-        }
-
-        // ---------- 임원진: 대면 출석 체크 ----------
-
-        async function loadAdminRoster() {
-            try {
-                const [members, todayRecords] = await Promise.all([
-                    api('/api/members'),
-                    api(`/api/attendance-records?date=${todayIso()}`),
-                ]);
-                state.allMembers = members;
-                state.todayRecordByMember = {};
-                todayRecords
-                    .filter(r => r.status !== 'REJECTED')
-                    .forEach(r => { state.todayRecordByMember[r.memberId] = r; });
-                renderAdminRoster();
-            } catch (e) {
-                showToast(e.message);
-            }
-        }
-
-        function renderAdminRoster() {
-            const el = document.getElementById('admin-roster-list');
-            el.innerHTML = '';
-            state.allMembers.forEach(m => {
-                const record = state.todayRecordByMember[m.id];
-                el.insertAdjacentHTML('beforeend', record ? rosterLockedCard(m, record) : rosterActionCard(m));
-            });
-        }
-
-        function rosterActionCard(m) {
-            return `
-                <div class="p-4 bg-gray-50 border border-gray-100 rounded-2xl flex flex-col space-y-3">
-                    <div class="flex justify-between items-center">
-                        <div class="flex items-center space-x-3 cursor-pointer active:scale-95 transition-transform" onclick="openMemberDetail(${m.id})">
-                            <div class="w-10 h-10 bg-white shadow-sm rounded-full flex items-center justify-center text-sm font-black text-toss-blue border border-gray-100">${m.name.charAt(0)}</div>
-                            <span class="font-black text-toss-text text-base">${m.name}<span class="text-[10px] font-bold text-toss-subText ml-1">${m.part}</span> <i class="fa-solid fa-chevron-right text-[10px] text-gray-400 ml-1"></i></span>
-                        </div>
-                        <div class="flex space-x-1.5">
-                            <button onclick="setRosterStatus(${m.id}, 'PRESENT')" id="btn-att-${m.id}" class="px-3 py-2 text-xs font-black rounded-xl bg-white border border-gray-200 text-gray-400 transition-colors">출석</button>
-                            <button onclick="setRosterStatus(${m.id}, 'LATE')" id="btn-late-${m.id}" class="px-3 py-2 text-xs font-black rounded-xl bg-white border border-gray-200 text-gray-400 transition-colors">지각</button>
-                            <button onclick="setRosterStatus(${m.id}, 'ABSENT')" id="btn-abs-${m.id}" class="px-3 py-2 text-xs font-black rounded-xl bg-white border border-gray-200 text-gray-400 transition-colors">결석</button>
-                        </div>
-                    </div>
-                    <div id="late-input-wrap-${m.id}" class="hidden flex items-center justify-end space-x-2 pt-2 border-t border-gray-200">
-                        <span class="text-xs font-bold text-toss-red">지각 시간:</span>
-                        <input type="number" id="roster-late-min-${m.id}" placeholder="0" class="w-16 p-2 text-right bg-white border border-red-200 rounded-lg outline-none font-black text-toss-red text-sm focus:border-toss-red">
-                        <span class="text-xs font-bold text-toss-red">분</span>
-                        <button onclick="saveLate(${m.id})" class="ml-2 px-3 py-1.5 bg-red-50 text-toss-red border border-red-100 rounded-lg text-xs font-black active:scale-95">확인</button>
-                    </div>
-                </div>
-            `;
-        }
-
-        function rosterLockedCard(m, record) {
-            const meta = statusMeta(record.status, record.lateMinutes);
-            const methodLabel = record.method === 'PHOTO' ? '사진 인증' : '대면 체크';
-            return `
-                <div class="p-4 bg-gray-50 border border-gray-100 rounded-2xl flex items-center justify-between opacity-80">
-                    <div class="flex items-center space-x-3 cursor-pointer active:scale-95 transition-transform" onclick="openMemberDetail(${m.id})">
-                        <div class="w-10 h-10 bg-white shadow-sm rounded-full flex items-center justify-center text-sm font-black text-toss-blue border border-gray-100">${m.name.charAt(0)}</div>
-                        <span class="font-black text-toss-text text-base">${m.name}<span class="text-[10px] font-bold text-toss-subText ml-1">${m.part}</span></span>
-                    </div>
-                    <span class="text-[10px] font-black px-3 py-1.5 rounded-lg border whitespace-nowrap ${meta.badge}">${methodLabel} · ${meta.label}</span>
-                </div>
-            `;
-        }
-
-        function resetRosterButtons(memberId) {
-            ['att', 'late', 'abs'].forEach(key => {
-                document.getElementById(`btn-${key}-${memberId}`).className = "px-3 py-2 text-xs font-black rounded-xl bg-white border border-gray-200 text-gray-400 transition-colors";
-            });
-            document.getElementById(`late-input-wrap-${memberId}`).classList.add('hidden');
-            document.getElementById(`btn-late-${memberId}`).textContent = '지각';
-        }
-
-        async function setRosterStatus(memberId, status) {
-            resetRosterButtons(memberId);
-
-            if (status === 'LATE') {
-                document.getElementById(`btn-late-${memberId}`).className = "px-3 py-2 text-xs font-black rounded-xl bg-orange-400 text-white shadow-sm transition-colors";
-                document.getElementById(`late-input-wrap-${memberId}`).classList.remove('hidden');
-                document.getElementById(`roster-late-min-${memberId}`).focus();
-                return;
-            }
-
-            try {
-                await api('/api/attendance-records/face-check', {
-                    method: 'PUT',
-                    body: JSON.stringify({
-                        memberId, practiceDate: todayIso(),
-                        scheduledStartTime: CORE_START, scheduledEndTime: CORE_END,
-                        result: status, lateMinutes: null
-                    })
-                });
-                showToast(status === 'PRESENT' ? '출석 처리되었습니다.' : '결석 처리되었습니다.');
-                await loadAdminRoster();
-            } catch (e) {
-                showToast(e.message);
-            }
-        }
-
-        async function saveLate(memberId) {
-            const min = parseInt(document.getElementById(`roster-late-min-${memberId}`).value);
-            if (!min || min <= 0) return showToast('지각 시간을 입력해주세요.');
-            try {
-                await api('/api/attendance-records/face-check', {
-                    method: 'PUT',
-                    body: JSON.stringify({
-                        memberId, practiceDate: todayIso(),
-                        scheduledStartTime: CORE_START, scheduledEndTime: CORE_END,
-                        result: 'LATE', lateMinutes: min
-                    })
-                });
-                showToast(min >= 60 ? '60분 이상 지각으로 결석 처리되었습니다.' : `${min}분 지각 처리 완료`);
-                await loadAdminRoster();
-            } catch (e) {
-                showToast(e.message);
-            }
-        }
-
-        async function openMemberDetail(memberId) {
-            try {
-                const detail = await api(`/api/members/${memberId}`);
-                document.getElementById('detail-name').textContent = `${detail.name} (${detail.part})`;
-                document.getElementById('detail-avatar').textContent = detail.name.charAt(0);
-                document.getElementById('detail-unpaid').textContent = detail.unpaidFine.toLocaleString() + '원';
-
-                const list = document.getElementById('detail-history-list');
-                list.innerHTML = '';
-                if (detail.recentHistory.length === 0) {
-                    list.innerHTML = `<div class="text-center text-xs font-bold text-gray-400 py-6">최근 기록이 없습니다.</div>`;
-                } else {
-                    detail.recentHistory.forEach(r => {
-                        const meta = statusMeta(r.status, r.lateMinutes);
-                        list.insertAdjacentHTML('beforeend', `
-                            <div class="flex justify-between items-center bg-white p-3.5 rounded-xl border border-gray-100 shadow-sm mb-2">
-                                <span class="text-sm font-black text-toss-text">${r.practiceDate}</span>
-                                <span class="text-[10px] font-black px-2.5 py-1 rounded-md border ${meta.badge}">${meta.label}</span>
-                            </div>
-                        `);
-                    });
-                }
-                openSheet('member-detail-sheet');
-            } catch (e) {
-                showToast(e.message);
-            }
-        }
-
-        // ---------- 시작 ----------
-
-        function initScheduleTimeSelects() {
-            const hourSel = document.getElementById('sched-hour');
-            const minuteSel = document.getElementById('sched-minute');
-            for (let h = 0; h < 24; h++) {
-                const v = String(h).padStart(2, '0');
-                hourSel.insertAdjacentHTML('beforeend', `<option value="${v}" ${v === '15' ? 'selected' : ''}>${v}시</option>`);
-            }
-            ['00', '10', '20', '30', '40', '50'].forEach(m => {
-                minuteSel.insertAdjacentHTML('beforeend', `<option value="${m}">${m}분</option>`);
-            });
-        }
-
-        window.addEventListener('DOMContentLoaded', async () => {
-            initScheduleTimeSelects();
-            const saved = localStorage.getItem('soripae_member');
-            if (saved) {
-                state.member = JSON.parse(saved);
-                await startApp();
-            } else {
-                await renderLoginScreen();
-            }
-        });
-    </script>
+    <script src="/js/state.js"></script>
+    <script src="/js/app-shell.js"></script>
+    <script src="/js/login.js"></script>
+    <script src="/js/home.js"></script>
+    <script src="/js/schedule.js"></script>
+    <script src="/js/certify.js"></script>
+    <script src="/js/song.js"></script>
+    <script src="/js/admin.js"></script>
+    <script src="/js/main.js"></script>
 </body>
 </html>

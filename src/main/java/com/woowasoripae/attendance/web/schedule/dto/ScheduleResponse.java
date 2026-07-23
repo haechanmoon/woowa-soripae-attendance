@@ -7,6 +7,8 @@ import java.time.LocalTime;
 
 public record ScheduleResponse(
         Long id,
+        Long memberId,
+        String memberName,
         LocalDate practiceDate,
         DayOfWeek dayOfWeek,
         LocalTime startTime,
@@ -15,6 +17,8 @@ public record ScheduleResponse(
     public static ScheduleResponse from(PracticeSchedule schedule) {
         return new ScheduleResponse(
                 schedule.getId(),
+                schedule.getMember().getId(),
+                schedule.getMember().getName(),
                 schedule.getPracticeDate(),
                 schedule.getPracticeDate().getDayOfWeek(),
                 schedule.getStartTime(),

@@ -8,6 +8,7 @@ import com.woowasoripae.attendance.web.member.dto.FineSummaryResponse;
 import com.woowasoripae.attendance.web.member.dto.MemberCreateRequest;
 import com.woowasoripae.attendance.web.member.dto.MemberDetailResponse;
 import com.woowasoripae.attendance.web.member.dto.MemberSummaryResponse;
+import java.util.Comparator;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +18,10 @@ import org.springframework.transaction.annotation.Transactional;
 public class MemberService {
 
     private static final int RECENT_HISTORY_SIZE = 5;
+
+    /** 회장/부회장을 임원진 상단에 고정하고, 그 외에는 이름순으로 정렬한다. */
+    private static final Comparator<Member> MEMBER_ORDER =
+            Comparator.comparingInt(MemberService::officerRank).thenComparing(Member::getName);
 
     private final MemberRepository memberRepository;
     private final AttendanceRecordRepository attendanceRecordRepository;
@@ -34,7 +39,22 @@ public class MemberService {
 
     /** 부원 목록 조회 API — 홈 헤더 아바타, 임원 관리 > 대면 출석 체크 명단에서 사용. */
     public List<MemberSummaryResponse> getAllMembers() {
-        return memberRepository.findAll().stream().map(MemberSummaryResponse::from).toList();
+        return memberRepository.findAll().stream()
+                .sorted(MEMBER_ORDER)
+                .map(MemberSummaryResponse::from)
+                .toList();
+    }
+
+    private static int officerRank(Member member) {
+        String position = member.getPosition();
+        if (position == null) {
+            return 3;
+        }
+        return switch (position) {
+            case "회장" -> 0;
+            case "부회장" -> 1;
+            default -> 2;
+        };
     }
 
     /** 부원별 누적 벌금 조회 API — 홈 탭 "나의 누적 지각/결석비" 카드. */
@@ -70,10 +90,6 @@ public class MemberService {
     public MemberSummaryResponse createMember(MemberCreateRequest request) {
         Member member = new Member(request.name(), request.position(), request.part());
         return MemberSummaryResponse.from(memberRepository.save(member));
-    }
-
-    public void assertMemberExists(Long memberId) {
-        getMember(memberId);
     }
 
     private Member getMember(Long memberId) {

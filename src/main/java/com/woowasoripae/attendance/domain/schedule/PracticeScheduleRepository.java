@@ -13,5 +13,7 @@ public interface PracticeScheduleRepository extends JpaRepository<PracticeSchedu
 
     List<PracticeSchedule> findByMemberIdAndPracticeDateOrderByStartTimeAsc(Long memberId, LocalDate practiceDate);
 
+    List<PracticeSchedule> findByPracticeDateOrderByStartTimeAsc(LocalDate practiceDate);
+
     Optional<PracticeSchedule> findByMemberIdAndPracticeDateAndStartTime(Long memberId, LocalDate practiceDate, LocalTime startTime);
 }

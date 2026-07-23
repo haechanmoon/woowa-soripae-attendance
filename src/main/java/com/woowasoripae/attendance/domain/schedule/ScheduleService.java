@@ -46,6 +46,12 @@ public class ScheduleService {
                 .stream().map(ScheduleResponse::from).toList();
     }
 
+    /** 임원 관리 > 대면 출석 체크: 특정 날짜에 누가 등록해 놨는지 확인하기 위한 조회. */
+    public List<ScheduleResponse> getSchedulesByDate(LocalDate practiceDate) {
+        return practiceScheduleRepository.findByPracticeDateOrderByStartTimeAsc(practiceDate)
+                .stream().map(ScheduleResponse::from).toList();
+    }
+
     @Transactional
     public void delete(Long memberId, Long scheduleId) {
         PracticeSchedule schedule = practiceScheduleRepository.findById(scheduleId)
