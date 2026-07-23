@@ -75,6 +75,17 @@
         <main class="px-5">
             <div id="tab-home" class="space-y-4 tab-content active pt-2">
 
+                <div id="event-banner" class="hidden bg-gradient-to-br from-amber-400 to-orange-500 rounded-[24px] p-4 text-white shadow-lg flex items-center justify-between">
+                    <div>
+                        <p class="text-[11px] font-bold opacity-90">다가오는 행사</p>
+                        <p class="text-base font-black" id="event-banner-title">-</p>
+                    </div>
+                    <div class="text-right shrink-0 ml-3">
+                        <p class="text-2xl font-black leading-none" id="event-banner-dday">-</p>
+                        <p class="text-[10px] font-bold opacity-90 mt-0.5" id="event-banner-date">-</p>
+                    </div>
+                </div>
+
                 <div class="bg-gradient-to-br from-toss-blue to-blue-600 rounded-[28px] p-6 text-white shadow-lg relative overflow-hidden">
                     <div class="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-10 -mt-10"></div>
                     <div class="relative z-10">
@@ -208,8 +219,9 @@
                 </div>
 
                 <div class="flex space-x-2 mb-5 bg-gray-100 p-1.5 rounded-2xl">
-                    <button id="btn-admin-queue" onclick="switchAdminMenu('queue')" class="flex-1 py-2.5 text-sm font-black bg-white text-toss-text rounded-xl shadow-sm transition-all">사진 승인 대기열</button>
-                    <button id="btn-admin-face" onclick="switchAdminMenu('face')" class="flex-1 py-2.5 text-sm font-black text-gray-400 rounded-xl transition-all">대면 출석 체크</button>
+                    <button id="btn-admin-queue" onclick="switchAdminMenu('queue')" class="flex-1 py-2.5 text-xs font-black bg-white text-toss-text rounded-xl shadow-sm transition-all">사진 승인</button>
+                    <button id="btn-admin-face" onclick="switchAdminMenu('face')" class="flex-1 py-2.5 text-xs font-black text-gray-400 rounded-xl transition-all">대면 체크</button>
+                    <button id="btn-admin-event" onclick="switchAdminMenu('event')" class="flex-1 py-2.5 text-xs font-black text-gray-400 rounded-xl transition-all">행사 관리</button>
                 </div>
 
                 <div id="admin-view-queue">
@@ -232,9 +244,24 @@
                     <div class="bg-toss-card rounded-[28px] p-6 shadow-toss">
                         <div class="mb-5">
                             <h3 class="text-base font-black text-toss-text">오늘의 대면 출석 명단</h3>
-                            <p class="text-xs font-bold text-toss-blue mt-1">13:00 코어타임 기준 · 오늘 이미 사진 인증/대면 처리된 부원은 자동으로 잠깁니다</p>
+                            <p class="text-xs font-bold text-toss-blue mt-1">13:00 코어타임 기준</p>
                         </div>
                         <div id="admin-roster-list" class="space-y-4"></div>
+                    </div>
+                </div>
+
+                <div id="admin-view-event" class="hidden space-y-4 pb-4">
+                    <div class="bg-toss-card rounded-[28px] p-6 shadow-toss">
+                        <div class="mb-5">
+                            <h3 class="text-base font-black text-toss-text">공연/행사 관리</h3>
+                            <p class="text-xs font-bold text-toss-subText mt-1">등록한 행사는 홈 배너와 캘린더에 강조 표시됩니다.</p>
+                        </div>
+                        <div class="flex space-x-2 mb-3">
+                            <input type="date" id="event-date-input" class="flex-[1] p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold outline-none focus:border-toss-blue">
+                            <input type="text" id="event-title-input" placeholder="행사명 (예: 하계 공연)" class="flex-[1.5] p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold outline-none focus:border-toss-blue">
+                        </div>
+                        <button onclick="addClubEvent()" class="w-full bg-toss-blue text-white font-black text-sm py-3 rounded-xl shadow-sm active:scale-[0.98] transition-transform mb-5">행사 등록</button>
+                        <div id="event-list" class="space-y-2"></div>
                     </div>
                 </div>
             </div>
@@ -294,15 +321,7 @@
                 <div class="flex space-x-2">
                     <div class="flex-[1]">
                         <div class="relative">
-                            <select id="sched-day" class="w-full p-4 bg-white border border-gray-200 rounded-2xl outline-none font-black text-toss-text text-sm appearance-none cursor-pointer focus:border-toss-blue shadow-sm">
-                                <option value="MONDAY">월요일</option>
-                                <option value="TUESDAY">화요일</option>
-                                <option value="WEDNESDAY">수요일</option>
-                                <option value="THURSDAY">목요일</option>
-                                <option value="FRIDAY">금요일</option>
-                                <option value="SATURDAY">토요일</option>
-                                <option value="SUNDAY">일요일</option>
-                            </select>
+                            <select id="sched-day" class="w-full p-4 bg-white border border-gray-200 rounded-2xl outline-none font-black text-toss-text text-sm appearance-none cursor-pointer focus:border-toss-blue shadow-sm"></select>
                             <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
                         </div>
                     </div>
@@ -354,13 +373,19 @@
             <p class="text-xs font-bold text-toss-subText mb-6" id="cal-member-name">-</p>
 
             <div class="bg-gray-50 border border-gray-100 p-5 rounded-[24px] mb-6">
-                <div class="flex justify-between items-center mb-4 pb-4 border-b border-gray-200">
-                    <span class="text-sm font-black text-toss-subText">진행 상태</span>
-                    <span id="cal-status" class="text-base font-black px-3 py-1 rounded-lg">-</span>
+                <div id="cal-event-row" class="hidden flex justify-between items-center mb-4 pb-4 border-b border-gray-200">
+                    <span class="text-sm font-black text-amber-500"><i class="fa-solid fa-star mr-1"></i>행사</span>
+                    <span id="cal-event-title" class="text-base font-black text-amber-600">-</span>
                 </div>
-                <div class="flex justify-between items-center">
-                    <span class="text-sm font-black text-toss-subText">진행 시간</span>
-                    <span id="cal-time" class="text-base font-black text-toss-text tracking-tight">-</span>
+                <div id="cal-attendance-block">
+                    <div class="flex justify-between items-center mb-4 pb-4 border-b border-gray-200">
+                        <span class="text-sm font-black text-toss-subText">진행 상태</span>
+                        <span id="cal-status" class="text-base font-black px-3 py-1 rounded-lg">-</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-black text-toss-subText">진행 시간</span>
+                        <span id="cal-time" class="text-base font-black text-toss-text tracking-tight">-</span>
+                    </div>
                 </div>
             </div>
 

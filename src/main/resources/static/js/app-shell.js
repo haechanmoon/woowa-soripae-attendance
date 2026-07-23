@@ -8,7 +8,7 @@ async function startApp() {
     document.getElementById('header-date').textContent = formatTodayKorean();
     document.getElementById('nav-admin').classList.toggle('hidden', !state.member.officer);
     switchTab('home');
-    await Promise.all([loadFineSummary(), loadCalendar()]);
+    await Promise.all([loadFineSummary(), loadCalendar(), loadEventBanner()]);
 }
 
 function handleTabClick(targetTab) {
@@ -24,7 +24,7 @@ function handleTabClick(targetTab) {
     }
     switchTab(targetTab);
     if (targetTab === 'certify') { loadMemberHistory(); loadCertifySchedules(); }
-    if (targetTab === 'home') { loadFineSummary(); loadCalendar(); }
+    if (targetTab === 'home') { loadFineSummary(); loadCalendar(); loadEventBanner(); }
     if (targetTab === 'song') { loadMySongs(); }
 }
 
@@ -44,21 +44,20 @@ function switchTab(tabName) {
 }
 
 function switchAdminMenu(menu) {
-    const btnQ = document.getElementById('btn-admin-queue');
-    const btnF = document.getElementById('btn-admin-face');
-    if (menu === 'queue') {
-        document.getElementById('admin-view-queue').classList.remove('hidden');
-        document.getElementById('admin-view-face').classList.add('hidden');
-        btnQ.className = "flex-1 py-2.5 text-sm font-black bg-white text-toss-text rounded-xl shadow-sm transition-all";
-        btnF.className = "flex-1 py-2.5 text-sm font-black text-gray-400 rounded-xl transition-all";
-        loadAdminQueue();
-    } else {
-        document.getElementById('admin-view-queue').classList.add('hidden');
-        document.getElementById('admin-view-face').classList.remove('hidden');
-        btnF.className = "flex-1 py-2.5 text-sm font-black bg-white text-toss-text rounded-xl shadow-sm transition-all";
-        btnQ.className = "flex-1 py-2.5 text-sm font-black text-gray-400 rounded-xl transition-all";
-        loadAdminRoster();
-    }
+    const buttons = { queue: document.getElementById('btn-admin-queue'), face: document.getElementById('btn-admin-face'), event: document.getElementById('btn-admin-event') };
+    const views = { queue: document.getElementById('admin-view-queue'), face: document.getElementById('admin-view-face'), event: document.getElementById('admin-view-event') };
+
+    Object.keys(views).forEach(key => {
+        const active = key === menu;
+        views[key].classList.toggle('hidden', !active);
+        buttons[key].className = active
+            ? "flex-1 py-2.5 text-xs font-black bg-white text-toss-text rounded-xl shadow-sm transition-all"
+            : "flex-1 py-2.5 text-xs font-black text-gray-400 rounded-xl transition-all";
+    });
+
+    if (menu === 'queue') loadAdminQueue();
+    else if (menu === 'face') loadAdminRoster();
+    else loadAdminEvents();
 }
 
 function openPwModal() {

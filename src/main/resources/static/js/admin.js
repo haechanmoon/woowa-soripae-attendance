@@ -242,6 +242,59 @@ async function saveLate(memberId) {
     }
 }
 
+// ---------- 임원진: 행사 관리 ----------
+
+async function loadAdminEvents() {
+    try {
+        const list = await api('/api/events');
+        renderAdminEventList(list);
+    } catch (e) {
+        showToast(e.message);
+    }
+}
+
+function renderAdminEventList(list) {
+    const el = document.getElementById('event-list');
+    el.innerHTML = '';
+    if (list.length === 0) {
+        el.innerHTML = `<div class="p-4 bg-gray-50 rounded-xl text-center text-xs font-bold text-gray-400">등록된 행사가 없습니다.</div>`;
+        return;
+    }
+    list.forEach(ev => {
+        el.insertAdjacentHTML('beforeend', `
+            <div class="flex justify-between items-center bg-blue-50 p-3.5 rounded-xl border border-blue-100/50">
+                <span class="text-sm font-black text-toss-blue">${ev.eventDate} · ${ev.title}</span>
+                <button onclick="deleteClubEvent(${ev.id})" class="w-7 h-7 bg-white rounded-full flex items-center justify-center text-gray-400 hover:text-toss-red shadow-sm transition"><i class="fa-solid fa-xmark text-xs"></i></button>
+            </div>
+        `);
+    });
+}
+
+async function addClubEvent() {
+    const eventDate = document.getElementById('event-date-input').value;
+    const title = document.getElementById('event-title-input').value.trim();
+    if (!eventDate || !title) return showToast('날짜와 행사명을 입력해주세요.');
+    try {
+        await api('/api/events', { method: 'POST', body: JSON.stringify({ eventDate, title }) });
+        document.getElementById('event-title-input').value = '';
+        await loadAdminEvents();
+        await loadEventBanner();
+        showToast('행사가 등록되었습니다.');
+    } catch (e) {
+        showToast(e.message);
+    }
+}
+
+async function deleteClubEvent(id) {
+    try {
+        await api(`/api/events/${id}`, { method: 'DELETE' });
+        await loadAdminEvents();
+        await loadEventBanner();
+    } catch (e) {
+        showToast(e.message);
+    }
+}
+
 async function openMemberDetail(memberId) {
     try {
         const detail = await api(`/api/members/${memberId}`);

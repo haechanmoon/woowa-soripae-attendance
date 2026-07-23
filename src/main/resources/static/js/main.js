@@ -14,6 +14,7 @@ function initScheduleTimeSelects() {
 
 window.addEventListener('DOMContentLoaded', async () => {
     initScheduleTimeSelects();
+    populateScheduleDayOptions();
     renderNextWeekRange();
     const saved = localStorage.getItem('soripae_member');
     if (saved) {

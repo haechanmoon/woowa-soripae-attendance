@@ -1,4 +1,35 @@
-// ---------- 홈: 벌금 카드 / 캘린더 ----------
+// ---------- 홈: 벌금 카드 / 캘린더 / 행사 배너 ----------
+
+async function loadEventBanner() {
+    try {
+        state.clubEvents = await api('/api/events');
+        renderEventBanner();
+    } catch (e) {
+        // 배너는 부가 기능이라 실패해도 조용히 무시한다.
+    }
+}
+
+function renderEventBanner() {
+    const banner = document.getElementById('event-banner');
+    const today = todayIso();
+    const upcoming = (state.clubEvents || [])
+        .filter(ev => ev.eventDate >= today)
+        .sort((a, b) => a.eventDate.localeCompare(b.eventDate))[0];
+    if (!upcoming) {
+        banner.classList.add('hidden');
+        return;
+    }
+    const dday = daysBetween(today, upcoming.eventDate);
+    document.getElementById('event-banner-title').textContent = upcoming.title;
+    document.getElementById('event-banner-dday').textContent = dday === 0 ? 'D-DAY' : `D-${dday}`;
+    const [, m, d] = upcoming.eventDate.split('-').map(Number);
+    document.getElementById('event-banner-date').textContent = `${m}/${d}`;
+    banner.classList.remove('hidden');
+}
+
+function daysBetween(fromIso, toIso) {
+    return Math.round((new Date(toIso) - new Date(fromIso)) / 86400000);
+}
 
 async function loadFineSummary() {
     try {
@@ -22,9 +53,10 @@ async function loadFineSummary() {
 
 async function loadCalendar() {
     try {
-        const [records, schedules] = await Promise.all([
+        const [records, schedules, events] = await Promise.all([
             api(`/api/members/${state.member.id}/attendance-records?year=${state.calYear}&month=${state.calMonth}`),
             api(`/api/members/${state.member.id}/schedules`),
+            api('/api/events'),
         ]);
 
         // 스케줄만 등록하고 아직 인증(사진/대면)을 안 한 날짜는 실제 기록이 없어 캘린더에서 빠져 보였다.
@@ -46,6 +78,10 @@ async function loadCalendar() {
             }));
 
         state.calendarRecords = [...records, ...scheduledOnly];
+        state.calendarEvents = events.filter(ev => {
+            const [y, m] = ev.eventDate.split('-').map(Number);
+            return y === state.calYear && m === state.calMonth;
+        });
         renderCalendar();
     } catch (e) {
         showToast(e.message);
@@ -73,29 +109,58 @@ function renderCalendar() {
         const day = parseInt(r.practiceDate.split('-')[2], 10);
         byDay[day] = r;
     });
+    const eventByDay = {};
+    (state.calendarEvents || []).forEach(ev => {
+        const day = parseInt(ev.eventDate.split('-')[2], 10);
+        eventByDay[day] = ev;
+    });
 
     for (let day = 1; day <= daysInMonth; day++) {
         const record = byDay[day];
-        let classes = "text-sm font-black text-toss-text w-8 h-8 mx-auto flex items-center justify-center rounded-full cursor-pointer transition";
+        const event = eventByDay[day];
+        let classes = "text-sm font-black text-toss-text w-8 h-8 mx-auto flex items-center justify-center rounded-full cursor-pointer transition relative";
         let clickEvt = '';
         if (record) {
             const meta = statusMeta(record.status, record.lateMinutes);
             classes += " " + meta.dot + " shadow-sm active:scale-90";
             clickEvt = `onclick="openCalSheet(${day})"`;
+        } else if (event) {
+            classes += " border-2 border-amber-400 text-amber-500 bg-amber-50 active:scale-90";
+            clickEvt = `onclick="openCalSheet(${day})"`;
         }
-        grid.innerHTML += `<div class="${classes}" ${clickEvt}>${day}</div>`;
+        const star = event ? `<i class="fa-solid fa-star absolute -top-1.5 -right-1.5 text-[8px] text-amber-500 bg-white rounded-full p-0.5 shadow-sm"></i>` : '';
+        grid.innerHTML += `<div class="${classes}" ${clickEvt}>${day}${star}</div>`;
     }
 }
 
 function openCalSheet(day) {
     const record = state.calendarRecords.find(r => parseInt(r.practiceDate.split('-')[2], 10) === day);
-    if (!record) return;
+    const event = (state.calendarEvents || []).find(ev => parseInt(ev.eventDate.split('-')[2], 10) === day);
+    if (!record && !event) return;
+
     document.getElementById('cal-date-title').textContent = `${state.calMonth}월 ${day}일`;
-    document.getElementById('cal-member-name').textContent = `${record.memberName} 님의 합주 기록입니다.`;
-    const meta = statusMeta(record.status, record.lateMinutes);
-    const statusEl = document.getElementById('cal-status');
-    statusEl.textContent = meta.label;
-    statusEl.className = 'text-base font-black px-3 py-1 rounded-lg border ' + meta.badge;
-    document.getElementById('cal-time').textContent = `${formatTime(record.scheduledStartTime)} - ${formatTime(record.scheduledEndTime)}`;
+
+    const eventRow = document.getElementById('cal-event-row');
+    if (event) {
+        document.getElementById('cal-event-title').textContent = event.title;
+        eventRow.classList.remove('hidden');
+    } else {
+        eventRow.classList.add('hidden');
+    }
+
+    const attendanceBlock = document.getElementById('cal-attendance-block');
+    if (record) {
+        document.getElementById('cal-member-name').textContent = `${record.memberName} 님의 합주 기록입니다.`;
+        const meta = statusMeta(record.status, record.lateMinutes);
+        const statusEl = document.getElementById('cal-status');
+        statusEl.textContent = meta.label;
+        statusEl.className = 'text-base font-black px-3 py-1 rounded-lg border ' + meta.badge;
+        document.getElementById('cal-time').textContent = `${formatTime(record.scheduledStartTime)} - ${formatTime(record.scheduledEndTime)}`;
+        attendanceBlock.classList.remove('hidden');
+    } else {
+        document.getElementById('cal-member-name').textContent = '';
+        attendanceBlock.classList.add('hidden');
+    }
+
     openSheet('cal-sheet');
 }

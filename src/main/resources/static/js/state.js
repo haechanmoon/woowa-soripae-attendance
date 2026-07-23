@@ -7,6 +7,8 @@ const state = {
     calYear: new Date().getFullYear(),
     calMonth: new Date().getMonth() + 1,
     calendarRecords: [],
+    calendarEvents: [],
+    clubEvents: [],
     allMembers: [],
     mySongs: [],
     currentSong: null,

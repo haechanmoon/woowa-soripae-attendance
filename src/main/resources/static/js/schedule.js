@@ -20,6 +20,21 @@ function renderNextWeekRange() {
     el.textContent = `${fmt(nextMonday)}(월) ~ ${fmt(nextSunday)}(일)`;
 }
 
+const DAY_ORDER = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+
+/** 요일 선택창에 "월요일 (7/28)"처럼 다음 주 실제 날짜를 같이 보여준다. */
+function populateScheduleDayOptions() {
+    const daySel = document.getElementById('sched-day');
+    if (!daySel) return;
+    const { nextMonday } = nextWeekRange();
+    daySel.innerHTML = '';
+    DAY_ORDER.forEach((day, i) => {
+        const d = new Date(nextMonday);
+        d.setDate(nextMonday.getDate() + i);
+        daySel.insertAdjacentHTML('beforeend', `<option value="${day}">${DAY_LABEL[day]}요일 (${d.getMonth() + 1}/${d.getDate()})</option>`);
+    });
+}
+
 async function openScheduleSheet() {
     await loadSchedules();
     openSheet('schedule-sheet');
