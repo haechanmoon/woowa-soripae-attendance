@@ -97,6 +97,31 @@ async function loadAdminRoster() {
     } catch (e) {
         showToast(e.message);
     }
+    loadNextWeekRegistration();
+}
+
+async function loadNextWeekRegistration() {
+    try {
+        const data = await api('/api/schedules/next-week-registration');
+        renderNextWeekRegistration(data);
+    } catch (e) {
+        // 부가 정보라 실패해도 조용히 무시한다.
+    }
+}
+
+function renderNextWeekRegistration(data) {
+    const fmt = iso => { const [, m, d] = iso.split('-').map(Number); return `${m}/${d}`; };
+    document.getElementById('next-week-range-label').textContent =
+        `${fmt(data.weekStart)} ~ ${fmt(data.weekEnd)} · 등록 ${data.registered.length}명 / 미등록 ${data.notRegistered.length}명`;
+
+    const list = document.getElementById('next-week-unregistered-list');
+    if (data.notRegistered.length === 0) {
+        list.innerHTML = `<p class="text-sm font-black text-toss-green text-center py-4 bg-green-50 rounded-2xl border border-green-100">전원 등록 완료 🎉</p>`;
+        return;
+    }
+    list.innerHTML = `<div class="flex flex-wrap gap-2">` + data.notRegistered.map(m =>
+        `<span class="px-3 py-1.5 text-xs font-black text-toss-red bg-red-50 border border-red-100 rounded-full">${m.name}<span class="text-[10px] font-bold text-red-300 ml-1">${m.part}</span></span>`
+    ).join('') + `</div>`;
 }
 
 function renderAdminRoster() {

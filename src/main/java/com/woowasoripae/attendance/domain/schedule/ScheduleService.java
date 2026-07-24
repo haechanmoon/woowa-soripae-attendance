@@ -3,12 +3,16 @@ package com.woowasoripae.attendance.domain.schedule;
 import com.woowasoripae.attendance.domain.member.Member;
 import com.woowasoripae.attendance.domain.member.MemberRepository;
 import com.woowasoripae.attendance.global.exception.ApiException;
+import com.woowasoripae.attendance.web.schedule.dto.NextWeekRegistrationResponse;
 import com.woowasoripae.attendance.web.schedule.dto.ScheduleRegisterRequest;
 import com.woowasoripae.attendance.web.schedule.dto.ScheduleResponse;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.temporal.TemporalAdjusters;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,6 +54,22 @@ public class ScheduleService {
     public List<ScheduleResponse> getSchedulesByDate(LocalDate practiceDate) {
         return practiceScheduleRepository.findByPracticeDateOrderByStartTimeAsc(practiceDate)
                 .stream().map(ScheduleResponse::from).toList();
+    }
+
+    /** 임원 관리: 다음 주(다음 월~일)에 스케줄을 아직 등록하지 않은 부원을 파악한다. */
+    public NextWeekRegistrationResponse getNextWeekRegistration() {
+        LocalDate weekStart = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+        LocalDate weekEnd = weekStart.plusDays(6);
+        Set<Long> registeredIds = practiceScheduleRepository.findByPracticeDateBetween(weekStart, weekEnd)
+                .stream().map(s -> s.getMember().getId()).collect(Collectors.toSet());
+
+        List<NextWeekRegistrationResponse.MemberBrief> registered = new ArrayList<>();
+        List<NextWeekRegistrationResponse.MemberBrief> notRegistered = new ArrayList<>();
+        for (Member member : memberRepository.findAll()) {
+            var brief = new NextWeekRegistrationResponse.MemberBrief(member.getId(), member.getName(), member.getPart());
+            (registeredIds.contains(member.getId()) ? registered : notRegistered).add(brief);
+        }
+        return new NextWeekRegistrationResponse(weekStart, weekEnd, registered, notRegistered);
     }
 
     @Transactional

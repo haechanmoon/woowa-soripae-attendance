@@ -1,6 +1,7 @@
 package com.woowasoripae.attendance.web.schedule;
 
 import com.woowasoripae.attendance.domain.schedule.ScheduleService;
+import com.woowasoripae.attendance.web.schedule.dto.NextWeekRegistrationResponse;
 import com.woowasoripae.attendance.web.schedule.dto.ScheduleRegisterRequest;
 import com.woowasoripae.attendance.web.schedule.dto.ScheduleResponse;
 import jakarta.validation.Valid;
@@ -34,6 +35,12 @@ public class ScheduleController {
     @GetMapping("/api/schedules")
     public List<ScheduleResponse> getSchedulesByDate(@RequestParam(required = false) LocalDate date) {
         return scheduleService.getSchedulesByDate(date != null ? date : LocalDate.now());
+    }
+
+    /** 임원 관리: 다음 주 스케줄을 아직 등록하지 않은 부원 현황. */
+    @GetMapping("/api/schedules/next-week-registration")
+    public NextWeekRegistrationResponse getNextWeekRegistration() {
+        return scheduleService.getNextWeekRegistration();
     }
 
     @PostMapping("/api/members/{memberId}/schedules")
