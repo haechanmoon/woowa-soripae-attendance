@@ -25,25 +25,25 @@ public class ClubEventController {
     }
 
     /** 홈 배너·캘린더 강조에 쓰는 전체 행사 목록. */
-    @GetMapping("/api/events")
+    @GetMapping("/api/club-events")
     public List<ClubEventResponse> getAll() {
         return clubEventService.getAll();
     }
 
     /** 임원 관리 > 행사 관리: 새 행사 등록(예: 하계 공연). */
-    @PostMapping("/api/events")
+    @PostMapping("/api/club-events")
     public ResponseEntity<ClubEventResponse> create(@Valid @RequestBody ClubEventRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(clubEventService.create(request));
     }
 
     /** 임원 관리 > 행사 관리: 날짜/제목 수정. */
-    @PatchMapping("/api/events/{eventId}")
+    @PatchMapping("/api/club-events/{eventId}")
     public ClubEventResponse update(@PathVariable Long eventId, @Valid @RequestBody ClubEventRequest request) {
         return clubEventService.update(eventId, request);
     }
 
     /** 임원 관리 > 행사 관리: 삭제. */
-    @DeleteMapping("/api/events/{eventId}")
+    @DeleteMapping("/api/club-events/{eventId}")
     public ResponseEntity<Void> delete(@PathVariable Long eventId) {
         clubEventService.delete(eventId);
         return ResponseEntity.noContent().build();

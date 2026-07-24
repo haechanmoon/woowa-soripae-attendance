@@ -2,7 +2,7 @@
 
 async function loadEventBanner() {
     try {
-        state.clubEvents = await api('/api/events');
+        state.clubEvents = await api('/api/club-events');
         renderEventBanner();
     } catch (e) {
         // 배너는 부가 기능이라 실패해도 조용히 무시한다.
@@ -56,7 +56,7 @@ async function loadCalendar() {
         const [records, schedules, events] = await Promise.all([
             api(`/api/members/${state.member.id}/attendance-records?year=${state.calYear}&month=${state.calMonth}`),
             api(`/api/members/${state.member.id}/schedules`),
-            api('/api/events'),
+            api('/api/club-events'),
         ]);
 
         // 스케줄만 등록하고 아직 인증(사진/대면)을 안 한 날짜는 실제 기록이 없어 캘린더에서 빠져 보였다.

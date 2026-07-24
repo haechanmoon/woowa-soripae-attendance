@@ -246,7 +246,7 @@ async function saveLate(memberId) {
 
 async function loadAdminEvents() {
     try {
-        const list = await api('/api/events');
+        const list = await api('/api/club-events');
         renderAdminEventList(list);
     } catch (e) {
         showToast(e.message);
@@ -275,7 +275,7 @@ async function addClubEvent() {
     const title = document.getElementById('event-title-input').value.trim();
     if (!eventDate || !title) return showToast('날짜와 행사명을 입력해주세요.');
     try {
-        await api('/api/events', { method: 'POST', body: JSON.stringify({ eventDate, title }) });
+        await api('/api/club-events', { method: 'POST', body: JSON.stringify({ eventDate, title }) });
         document.getElementById('event-title-input').value = '';
         await loadAdminEvents();
         await loadEventBanner();
@@ -287,7 +287,7 @@ async function addClubEvent() {
 
 async function deleteClubEvent(id) {
     try {
-        await api(`/api/events/${id}`, { method: 'DELETE' });
+        await api(`/api/club-events/${id}`, { method: 'DELETE' });
         await loadAdminEvents();
         await loadEventBanner();
     } catch (e) {
