@@ -312,7 +312,7 @@
                 <h3 class="text-xl font-black text-toss-text">임원진 인증</h3>
                 <p class="text-xs text-toss-subText mt-1.5 font-semibold">임원 비밀번호를 입력해주세요.</p>
             </div>
-            <input type="password" id="admin-pw-input" placeholder="비밀번호 입력" class="w-full p-4 bg-gray-50 rounded-2xl text-center font-black tracking-widest text-lg border border-gray-100 focus:border-toss-blue outline-none transition mb-5">
+            <input type="password" id="admin-pw-input" placeholder="비밀번호 입력" enterkeyhint="go" onkeydown="if (event.key === 'Enter') verifyAdminPw();" class="w-full p-4 bg-gray-50 rounded-2xl text-center font-black tracking-widest text-lg border border-gray-100 focus:border-toss-blue outline-none transition mb-5">
             <div class="flex space-x-3">
                 <button onclick="closePwModal()" class="flex-[1] p-3.5 bg-gray-100 text-toss-subText font-black rounded-xl active:bg-gray-200">취소</button>
                 <button onclick="verifyAdminPw()" class="flex-[2] p-3.5 bg-toss-blue text-white font-black rounded-xl shadow-md active:bg-blue-600">확인</button>
