@@ -2,7 +2,7 @@
 
 async function loadEventBanner() {
     try {
-        state.clubEvents = await api('/api/club-events');
+        state.clubEvents = await api('/api/performances');
         renderEventBanner();
     } catch (e) {
         // 배너는 부가 기능이라 실패해도 조용히 무시한다.
@@ -52,11 +52,11 @@ async function loadFineSummary() {
 }
 
 async function loadCalendar() {
+    // 출석/스케줄은 캘린더 본체라 반드시 필요하다.
     try {
-        const [records, schedules, events] = await Promise.all([
+        const [records, schedules] = await Promise.all([
             api(`/api/members/${state.member.id}/attendance-records?year=${state.calYear}&month=${state.calMonth}`),
             api(`/api/members/${state.member.id}/schedules`),
-            api('/api/club-events'),
         ]);
 
         // 스케줄만 등록하고 아직 인증(사진/대면)을 안 한 날짜는 실제 기록이 없어 캘린더에서 빠져 보였다.
@@ -78,13 +78,22 @@ async function loadCalendar() {
             }));
 
         state.calendarRecords = [...records, ...scheduledOnly];
+        renderCalendar();
+    } catch (e) {
+        showToast(e.message);
+    }
+
+    // 행사 강조(별표)는 부가 기능이다. 광고 차단기 등으로 이 요청이 막혀도
+    // 캘린더 본체는 이미 떴으니, 실패해도 조용히 무시한다(토스트 X).
+    try {
+        const events = await api('/api/performances');
         state.calendarEvents = events.filter(ev => {
             const [y, m] = ev.eventDate.split('-').map(Number);
             return y === state.calYear && m === state.calMonth;
         });
         renderCalendar();
     } catch (e) {
-        showToast(e.message);
+        // 행사 강조 실패는 무시한다.
     }
 }
 
