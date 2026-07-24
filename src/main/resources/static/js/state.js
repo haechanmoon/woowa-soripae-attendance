@@ -14,6 +14,7 @@ const state = {
     currentSong: null,
     currentPoll: null,
     selectedSongMemberIds: new Set(),
+    pendingPhotoDataUrl: null,
 };
 
 const CORE_START = '13:00';

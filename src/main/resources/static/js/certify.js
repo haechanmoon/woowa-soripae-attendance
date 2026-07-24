@@ -27,33 +27,102 @@ async function loadCertifySchedules() {
         });
 }
 
-function previewPhoto(input) {
-    if (input.files && input.files[0]) {
+/** 큰 원본 사진을 화면·업로드·임시저장에 알맞게 축소한 JPEG dataURL로 변환한다.
+ *  (localStorage 용량 절약 + 업로드 경량화) */
+function fileToResizedDataUrl(file, maxDim = 1600, quality = 0.85) {
+    return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = function (e) {
-            document.getElementById('photo-preview').src = e.target.result;
-            document.getElementById('photo-preview').classList.remove('hidden');
-            document.getElementById('upload-prompt').classList.add('hidden');
+        reader.onload = () => {
+            const img = new Image();
+            img.onload = () => {
+                let { width, height } = img;
+                if (width > maxDim || height > maxDim) {
+                    if (width >= height) { height = Math.round(height * maxDim / width); width = maxDim; }
+                    else { width = Math.round(width * maxDim / height); height = maxDim; }
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+            img.onerror = reject;
+            img.src = reader.result;
         };
-        reader.readAsDataURL(input.files[0]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+function dataUrlToBlob(dataUrl) {
+    const [head, b64] = dataUrl.split(',');
+    const mime = (head.match(/:(.*?);/) || [])[1] || 'image/jpeg';
+    const bin = atob(b64);
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], { type: mime });
+}
+
+/** 고른 사진을 미리보기에 표시하고, 카메라 실행으로 앱이 새로고침돼도 잃지 않도록 임시 저장한다. */
+function setCertifyPhoto(dataUrl) {
+    state.pendingPhotoDataUrl = dataUrl;
+    document.getElementById('photo-preview').src = dataUrl;
+    document.getElementById('photo-preview').classList.remove('hidden');
+    document.getElementById('upload-prompt').classList.add('hidden');
+    try {
+        localStorage.setItem('soripae_pending_photo', dataUrl);
+        localStorage.setItem('soripae_pending_schedule', document.getElementById('certify-schedule').value || '');
+    } catch (e) {
+        // 용량 초과 등으로 저장이 안 돼도 현재 세션에서는 제출 가능하므로 무시한다.
+    }
+}
+
+function clearPendingPhoto() {
+    state.pendingPhotoDataUrl = null;
+    localStorage.removeItem('soripae_pending_photo');
+    localStorage.removeItem('soripae_pending_schedule');
+    document.getElementById('photo-preview').classList.add('hidden');
+    document.getElementById('upload-prompt').classList.remove('hidden');
+}
+
+/** 사진 촬영 후 앱(특히 설치형 삼성 인터넷 PWA)이 새로고침되며 인증 화면을 벗어난 경우,
+ *  임시 저장해둔 사진을 인증 화면에 복원해 이어서 제출할 수 있게 한다. */
+async function restorePendingPhoto() {
+    const dataUrl = localStorage.getItem('soripae_pending_photo');
+    if (!dataUrl) return;
+    switchTab('certify');
+    await loadCertifySchedules();
+    loadMemberHistory();
+    const saved = localStorage.getItem('soripae_pending_schedule');
+    const sel = document.getElementById('certify-schedule');
+    if (saved && [...sel.options].some(o => o.value === saved)) sel.value = saved;
+    setCertifyPhoto(dataUrl);
+    showToast('올려둔 사진을 복원했어요. 인증 요청을 이어서 눌러주세요!');
+}
+
+async function previewPhoto(input) {
+    if (!input.files || !input.files[0]) return;
+    try {
+        const dataUrl = await fileToResizedDataUrl(input.files[0]);
+        setCertifyPhoto(dataUrl);
+    } catch (e) {
+        showToast('사진을 불러오지 못했어요. 다시 시도해주세요.');
     }
 }
 
 async function submitAttendance() {
     const scheduledVal = document.getElementById('certify-schedule').value;
-    const fileInput = document.getElementById('photo-upload');
-    if (!fileInput.files || !fileInput.files[0]) return showToast('인증 사진을 터치하여 올려주세요.');
+    const dataUrl = state.pendingPhotoDataUrl || localStorage.getItem('soripae_pending_photo');
+    if (!dataUrl) return showToast('인증 사진을 올려주세요.');
 
     const formData = new FormData();
     formData.append('memberId', state.member.id);
     formData.append('scheduledStartTime', scheduledVal);
-    formData.append('photo', fileInput.files[0]);
+    formData.append('photo', dataUrlToBlob(dataUrl), 'attendance.jpg');
 
     try {
         await api('/api/attendance-records', { method: 'POST', body: formData });
-        fileInput.value = '';
-        document.getElementById('photo-preview').classList.add('hidden');
-        document.getElementById('upload-prompt').classList.remove('hidden');
+        clearPendingPhoto();
         showToast('인증 요청 완료! 임원 승인을 기다려주세요.');
         await loadMemberHistory();
         await loadCalendar();

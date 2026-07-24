@@ -56,5 +56,7 @@ function logout() {
     if (!confirm('다른 계정으로 전환할까요?')) return;
     localStorage.removeItem('soripae_member');
     localStorage.removeItem('soripae_admin_pw');
+    localStorage.removeItem('soripae_pending_photo');
+    localStorage.removeItem('soripae_pending_schedule');
     location.reload();
 }
