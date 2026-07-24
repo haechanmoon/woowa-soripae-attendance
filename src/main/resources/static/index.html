@@ -221,8 +221,8 @@
                 <div class="grid grid-cols-2 gap-2 mb-5 bg-gray-100 p-1.5 rounded-2xl">
                     <button id="btn-admin-queue" onclick="switchAdminMenu('queue')" class="py-2.5 text-xs font-black bg-white text-toss-text rounded-xl shadow-sm transition-all">사진 승인</button>
                     <button id="btn-admin-face" onclick="switchAdminMenu('face')" class="py-2.5 text-xs font-black text-gray-400 rounded-xl transition-all">대면 체크</button>
-                    <button id="btn-admin-event" onclick="switchAdminMenu('event')" class="py-2.5 text-xs font-black text-gray-400 rounded-xl transition-all">행사 관리</button>
-                    <button id="btn-admin-song" onclick="switchAdminMenu('song')" class="py-2.5 text-xs font-black text-gray-400 rounded-xl transition-all">곡 관리</button>
+                    <button id="btn-admin-event" onclick="switchAdminMenu('event')" class="hidden py-2.5 text-xs font-black text-gray-400 rounded-xl transition-all">행사 관리</button>
+                    <button id="btn-admin-song" onclick="switchAdminMenu('song')" class="hidden py-2.5 text-xs font-black text-gray-400 rounded-xl transition-all">곡 관리</button>
                 </div>
 
                 <div id="admin-view-queue">
@@ -290,7 +290,7 @@
                 <i class="fa-solid fa-camera text-xl mb-1.5"></i>
                 <span class="text-[10px] font-black">인증하기</span>
             </button>
-            <button onclick="handleTabClick('song')" id="nav-song" class="nav-btn flex flex-col items-center justify-center w-20 text-gray-400 hover:text-gray-600 transition-colors pt-3">
+            <button onclick="handleTabClick('song')" id="nav-song" class="nav-btn hidden flex flex-col items-center justify-center w-20 text-gray-400 hover:text-gray-600 transition-colors pt-3">
                 <i class="fa-solid fa-music text-xl mb-1.5"></i>
                 <span class="text-[10px] font-black">합주</span>
             </button>
