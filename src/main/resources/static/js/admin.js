@@ -111,10 +111,15 @@ async function loadNextWeekRegistration() {
 
 function renderNextWeekRegistration(data) {
     const fmt = iso => { const [, m, d] = iso.split('-').map(Number); return `${m}/${d}`; };
+    const total = data.registered.length + data.notRegistered.length;
     document.getElementById('next-week-range-label').textContent =
-        `${fmt(data.weekStart)} ~ ${fmt(data.weekEnd)} · 등록 ${data.registered.length}명 / 미등록 ${data.notRegistered.length}명`;
+        `${fmt(data.weekStart)} ~ ${fmt(data.weekEnd)} · 곡 배정 ${total}명 중 미등록 ${data.notRegistered.length}명`;
 
     const list = document.getElementById('next-week-unregistered-list');
+    if (total === 0) {
+        list.innerHTML = `<p class="text-sm font-bold text-gray-400 text-center py-4 bg-gray-50 rounded-2xl border border-gray-100">아직 곡에 배정된 부원이 없어요.</p>`;
+        return;
+    }
     if (data.notRegistered.length === 0) {
         list.innerHTML = `<p class="text-sm font-black text-toss-green text-center py-4 bg-green-50 rounded-2xl border border-green-100">전원 등록 완료 🎉</p>`;
         return;

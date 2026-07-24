@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 
 import com.woowasoripae.attendance.domain.member.Member;
 import com.woowasoripae.attendance.domain.member.MemberRepository;
+import com.woowasoripae.attendance.domain.song.SongMemberRepository;
 import com.woowasoripae.attendance.global.exception.ApiException;
 import com.woowasoripae.attendance.web.schedule.dto.ScheduleRegisterRequest;
 import com.woowasoripae.attendance.web.schedule.dto.ScheduleResponse;
@@ -44,6 +45,8 @@ class ScheduleServiceTest {
     private PracticeScheduleRepository practiceScheduleRepository;
     @Mock
     private MemberRepository memberRepository;
+    @Mock
+    private SongMemberRepository songMemberRepository;
 
     private ScheduleService scheduleService;
 
@@ -52,7 +55,7 @@ class ScheduleServiceTest {
 
     @BeforeEach
     void setUp() {
-        scheduleService = new ScheduleService(practiceScheduleRepository, memberRepository);
+        scheduleService = new ScheduleService(practiceScheduleRepository, memberRepository, songMemberRepository);
         member = new Member("김유미", null, "세션");
         ReflectionTestUtils.setField(member, "id", 1L);
     }
