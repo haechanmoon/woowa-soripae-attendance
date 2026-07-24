@@ -8,7 +8,7 @@ async function startApp() {
     document.getElementById('header-date').textContent = formatTodayKorean();
     document.getElementById('nav-admin').classList.toggle('hidden', !state.member.officer);
     switchTab('home');
-    await Promise.all([loadFineSummary(), loadCalendar(), loadEventBanner()]);
+    await Promise.all([loadFineSummary(), loadCalendar(), loadEventBanner(), restoreAdminAuth()]);
 }
 
 function handleTabClick(targetTab) {
@@ -50,9 +50,13 @@ function switchAdminMenu(menu) {
     Object.keys(views).forEach(key => {
         const active = key === menu;
         views[key].classList.toggle('hidden', !active);
+        // className을 통째로 덮어쓰면 숨겨둔 버튼(예: 곡 관리)의 hidden이 지워져 다시 나타난다.
+        // 원래 숨김 상태였으면 유지한다.
+        const wasHidden = buttons[key].classList.contains('hidden');
         buttons[key].className = active
             ? "py-2.5 text-xs font-black bg-white text-toss-text rounded-xl shadow-sm transition-all"
             : "py-2.5 text-xs font-black text-gray-400 rounded-xl transition-all";
+        if (wasHidden) buttons[key].classList.add('hidden');
     });
 
     if (menu === 'queue') loadAdminQueue();
@@ -84,13 +88,33 @@ function closePwModal() {
     }, 300);
 }
 
+function markAdminAuthenticated() {
+    state.isAdminAuthenticated = true;
+    const icon = document.getElementById('admin-lock-icon');
+    icon.classList.remove('text-gray-300');
+    icon.classList.add('text-toss-blue', 'fa-unlock');
+}
+
+/** 저장해둔 임원 비밀번호로 조용히 재인증한다. 새로고침(또는 사진 촬영 후 복귀)해도 임원진 탭에서
+ *  매번 비밀번호를 다시 입력하지 않도록 하기 위함. 서버가 최종 확인하므로, 비번이 바뀌었으면
+ *  저장분을 폐기하고 다시 묻는다. */
+async function restoreAdminAuth() {
+    const pw = localStorage.getItem('soripae_admin_pw');
+    if (!pw) return;
+    try {
+        await api('/api/admin/auth', { method: 'POST', body: JSON.stringify({ password: pw }) });
+        markAdminAuthenticated();
+    } catch (e) {
+        localStorage.removeItem('soripae_admin_pw');
+    }
+}
+
 async function verifyAdminPw() {
     const pw = document.getElementById('admin-pw-input').value;
     try {
         await api('/api/admin/auth', { method: 'POST', body: JSON.stringify({ password: pw }) });
-        state.isAdminAuthenticated = true;
-        document.getElementById('admin-lock-icon').classList.remove('text-gray-300');
-        document.getElementById('admin-lock-icon').classList.add('text-toss-blue', 'fa-unlock');
+        markAdminAuthenticated();
+        localStorage.setItem('soripae_admin_pw', pw);
         closePwModal();
         showToast('임원진 인증이 완료되었습니다.');
         switchTab('admin');

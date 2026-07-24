@@ -44,7 +44,7 @@ function formatTime(t) {
 function formatDateTime(dt) {
     if (!dt) return '';
     const timePart = dt.split('T')[1] || '';
-    return timePart.substring(0, 8);
+    return timePart.substring(0, 5);
 }
 
 function todayIso() {

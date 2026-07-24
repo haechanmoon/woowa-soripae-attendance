@@ -1,5 +1,11 @@
 // ---------- 로그인(본인 선택) ----------
 
+// 첫 화면(본인 선택)에서만 쓰는 위트용 직함. DB의 실제 직함은 그대로 두고 여기서만 바꿔 보여준다.
+const WITTY_POSITIONS = {
+    '지용혁': '회장같은 부회장',
+    '손예은': '부회장같은 회장',
+};
+
 async function renderLoginScreen() {
     const statusEl = document.getElementById('login-status');
     const listEl = document.getElementById('login-member-list');
@@ -31,11 +37,12 @@ async function renderLoginScreen() {
 }
 
 function loginMemberButton(m) {
+    const position = WITTY_POSITIONS[m.name] || m.position;
     return `<button onclick="selectLoginMember(${m.id})" class="w-full flex items-center space-x-3 bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 active:scale-[0.98] transition-transform mb-2">
         <div class="w-9 h-9 rounded-full bg-blue-50 flex items-center justify-center text-toss-blue font-black text-sm shrink-0">${m.name.charAt(0)}</div>
-        <span class="font-black text-toss-text">${m.name}</span>
-        <span class="text-[10px] font-bold text-toss-subText bg-gray-50 px-2 py-1 rounded-full border border-gray-100">${m.part}</span>
-        ${m.position ? `<span class="ml-auto text-[10px] font-black text-toss-blue bg-blue-50 px-2 py-1 rounded-full">${m.position}</span>` : ''}
+        <span class="font-black text-toss-text shrink-0">${m.name}</span>
+        <span class="text-[10px] font-bold text-toss-subText bg-gray-50 px-2 py-1 rounded-full border border-gray-100 shrink-0">${m.part}</span>
+        ${position ? `<span class="ml-auto text-[10px] font-black text-toss-blue bg-blue-50 px-2 py-1 rounded-full whitespace-nowrap">${position}</span>` : ''}
     </button>`;
 }
 
@@ -48,5 +55,6 @@ function selectLoginMember(id) {
 function logout() {
     if (!confirm('다른 계정으로 전환할까요?')) return;
     localStorage.removeItem('soripae_member');
+    localStorage.removeItem('soripae_admin_pw');
     location.reload();
 }
