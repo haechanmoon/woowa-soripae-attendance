@@ -27,7 +27,7 @@ function handleTabClick(targetTab) {
     switchTab(targetTab);
     if (targetTab === 'certify') { loadMemberHistory(); loadCertifySchedules(); }
     if (targetTab === 'home') { loadFineSummary(); loadCalendar(); loadEventBanner(); }
-    if (targetTab === 'song') { loadMySongs(); }
+    if (targetTab === 'song') { loadMySongs(); loadWeeklySchedule(); }
 }
 
 function switchTab(tabName) {

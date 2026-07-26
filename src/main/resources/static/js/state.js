@@ -14,6 +14,7 @@ const state = {
     currentSong: null,
     currentPoll: null,
     selectedSongMemberIds: new Set(),
+    weekScope: 'THIS',
     pendingPhotoDataUrl: null,
 };
 

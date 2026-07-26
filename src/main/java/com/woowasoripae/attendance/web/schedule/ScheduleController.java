@@ -1,9 +1,11 @@
 package com.woowasoripae.attendance.web.schedule;
 
 import com.woowasoripae.attendance.domain.schedule.ScheduleService;
+import com.woowasoripae.attendance.domain.schedule.WeekScope;
 import com.woowasoripae.attendance.web.schedule.dto.NextWeekRegistrationResponse;
 import com.woowasoripae.attendance.web.schedule.dto.ScheduleRegisterRequest;
 import com.woowasoripae.attendance.web.schedule.dto.ScheduleResponse;
+import com.woowasoripae.attendance.web.schedule.dto.WeeklyScheduleResponse;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
@@ -35,6 +37,12 @@ public class ScheduleController {
     @GetMapping("/api/schedules")
     public List<ScheduleResponse> getSchedulesByDate(@RequestParam(required = false) LocalDate date) {
         return scheduleService.getSchedulesByDate(date != null ? date : LocalDate.now());
+    }
+
+    /** 요일별로 누가 언제 오는지 한 주(월~일) 단위로 본다. 부원 모두가 볼 수 있다. */
+    @GetMapping("/api/schedules/weekly")
+    public WeeklyScheduleResponse getWeeklySchedule(@RequestParam(defaultValue = "THIS") WeekScope scope) {
+        return scheduleService.getWeeklySchedule(scope);
     }
 
     /** 임원 관리: 다음 주 스케줄을 아직 등록하지 않은 부원 현황. */

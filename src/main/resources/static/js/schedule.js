@@ -92,3 +92,73 @@ async function deleteSchedule(id) {
         showToast(e.message);
     }
 }
+
+// ---------- 요일별 합주 현황 ----------
+
+function shortDate(iso) {
+    const [, m, d] = iso.split('-').map(Number);
+    return `${m}/${d}`;
+}
+
+async function loadWeeklySchedule() {
+    try {
+        renderWeeklySchedule(await api(`/api/schedules/weekly?scope=${state.weekScope}`));
+    } catch (e) {
+        showToast(e.message);
+    }
+}
+
+function switchWeekScope(scope) {
+    state.weekScope = scope;
+    ['THIS', 'NEXT'].forEach(key => {
+        document.getElementById(`btn-week-${key}`).className = key === scope
+            ? "px-3 py-1.5 text-[11px] font-black bg-white text-toss-text rounded-lg shadow-sm transition-all"
+            : "px-3 py-1.5 text-[11px] font-black text-gray-400 rounded-lg transition-all";
+    });
+    loadWeeklySchedule();
+}
+
+function renderWeeklySchedule(data) {
+    document.getElementById('weekly-range-label').textContent =
+        `${shortDate(data.weekStart)} ~ ${shortDate(data.weekEnd)} · 연인원 ${data.totalCount}명`;
+    const today = todayIso();
+    document.getElementById('weekly-day-list').innerHTML =
+        data.days.map(day => weeklyDayCard(day, today)).join('');
+}
+
+/** 등록이 없는 요일은 한 줄로 눌러 담는다. 7일을 다 그려도 스크롤이 짧아야 한눈에 비교가 된다. */
+function weeklyDayCard(day, today) {
+    const isToday = day.date === today;
+    const isEmpty = day.slots.length === 0;
+    const dayColor = day.dayOfWeek === 'SUNDAY' ? 'text-toss-red'
+        : day.dayOfWeek === 'SATURDAY' ? 'text-toss-blue' : 'text-toss-text';
+    const right = isEmpty
+        ? `<span class="text-[11px] font-bold text-gray-300">등록 없음</span>`
+        : `<span class="text-[11px] font-black text-toss-blue bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md">${day.memberCount}명</span>`;
+
+    return `
+        <div class="${isEmpty ? 'px-4 py-2.5' : 'p-4'} rounded-2xl border ${isToday ? 'bg-blue-50/40 border-blue-100' : 'bg-gray-50 border-gray-100'}">
+            <div class="flex items-center justify-between">
+                <span class="text-sm font-black ${dayColor} ${isEmpty ? 'opacity-50' : ''}">
+                    ${DAY_LABEL[day.dayOfWeek]}
+                    <span class="text-xs font-bold text-toss-subText ml-0.5">${shortDate(day.date)}</span>
+                    ${isToday ? `<span class="text-[10px] font-black text-white bg-toss-blue px-1.5 py-0.5 rounded-md ml-1 align-middle">오늘</span>` : ''}
+                </span>
+                ${right}
+            </div>
+            ${isEmpty ? '' : `<div class="mt-2.5 space-y-2">${day.slots.map(weeklySlotRow).join('')}</div>`}
+        </div>`;
+}
+
+/** 같은 시각에 오는 사람을 한 줄로 묶고, 내 이름은 파랗게 강조해 찾기 쉽게 한다. */
+function weeklySlotRow(slot) {
+    const names = slot.attendees.map(a => {
+        const mine = state.member && a.memberId === state.member.id;
+        return `<span class="px-2 py-1 text-[11px] font-black rounded-lg border ${mine ? 'bg-toss-blue text-white border-toss-blue' : 'bg-white text-toss-text border-gray-200'}">${a.name}</span>`;
+    }).join('');
+    return `
+        <div class="flex items-start space-x-2">
+            <span class="shrink-0 text-[11px] font-black text-toss-blue bg-white border border-blue-100 px-2 py-1 rounded-lg">${formatTime(slot.startTime)}</span>
+            <div class="flex flex-wrap gap-1.5">${names}</div>
+        </div>`;
+}

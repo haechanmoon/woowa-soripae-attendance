@@ -7,13 +7,17 @@ import com.woowasoripae.attendance.global.exception.ApiException;
 import com.woowasoripae.attendance.web.schedule.dto.NextWeekRegistrationResponse;
 import com.woowasoripae.attendance.web.schedule.dto.ScheduleRegisterRequest;
 import com.woowasoripae.attendance.web.schedule.dto.ScheduleResponse;
+import com.woowasoripae.attendance.web.schedule.dto.WeeklyScheduleResponse;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -82,6 +86,47 @@ public class ScheduleService {
             (registeredIds.contains(member.getId()) ? registered : notRegistered).add(brief);
         }
         return new NextWeekRegistrationResponse(weekStart, weekEnd, registered, notRegistered);
+    }
+
+    /**
+     * 한 주(월~일)를 요일별 → 시작 시각별로 묶어 "언제 누가 오는지"를 한 번에 보여준다.
+     * 등록이 없는 요일도 빈 상태로 포함해, 화면이 늘 7일을 같은 모양으로 그릴 수 있게 한다.
+     */
+    public WeeklyScheduleResponse getWeeklySchedule(WeekScope scope) {
+        LocalDate weekStart = scope.weekStart(LocalDate.now());
+        LocalDate weekEnd = weekStart.plusDays(6);
+
+        Map<LocalDate, List<PracticeSchedule>> byDate = practiceScheduleRepository
+                .findWithMemberByPracticeDateBetween(weekStart, weekEnd)
+                .stream().collect(Collectors.groupingBy(PracticeSchedule::getPracticeDate));
+
+        List<WeeklyScheduleResponse.DaySchedule> days = new ArrayList<>();
+        int totalCount = 0;
+        for (int i = 0; i < 7; i++) {
+            LocalDate date = weekStart.plusDays(i);
+            List<PracticeSchedule> ofDay = byDate.getOrDefault(date, List.of());
+            // 한 사람이 하루에 여러 타임을 등록해도 "몇 명 오는지"에서는 한 명이다.
+            int memberCount = (int) ofDay.stream().map(s -> s.getMember().getId()).distinct().count();
+            totalCount += memberCount;
+            days.add(new WeeklyScheduleResponse.DaySchedule(date, date.getDayOfWeek(), memberCount, toSlots(ofDay)));
+        }
+        return new WeeklyScheduleResponse(weekStart, weekEnd, totalCount, days);
+    }
+
+    /** 같은 시작 시각끼리 한 칸으로 묶는다. 칸은 이른 시간부터, 칸 안의 이름은 이름순으로 고정해 표시가 흔들리지 않게 한다. */
+    private List<WeeklyScheduleResponse.TimeSlot> toSlots(List<PracticeSchedule> ofDay) {
+        return ofDay.stream()
+                .collect(Collectors.groupingBy(PracticeSchedule::getStartTime, TreeMap::new, Collectors.toList()))
+                .entrySet().stream()
+                .map(entry -> new WeeklyScheduleResponse.TimeSlot(
+                        entry.getKey(),
+                        entry.getValue().get(0).getEndTime(),
+                        entry.getValue().stream()
+                                .map(PracticeSchedule::getMember)
+                                .sorted(Comparator.comparing(Member::getName))
+                                .map(m -> new WeeklyScheduleResponse.Attendee(m.getId(), m.getName(), m.getPart()))
+                                .toList()))
+                .toList();
     }
 
     @Transactional

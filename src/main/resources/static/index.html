@@ -208,6 +208,20 @@
                     <p class="text-xs font-bold text-toss-subText">내가 배정된 곡의 합주 시간을 팀원들과 맞춰보세요.</p>
                 </div>
 
+                <div class="bg-toss-card rounded-[28px] p-6 shadow-toss">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h3 class="text-base font-black text-toss-text">요일별 합주 현황</h3>
+                            <p id="weekly-range-label" class="text-xs font-bold text-toss-blue mt-1">-</p>
+                        </div>
+                        <div class="grid grid-cols-2 gap-1 bg-gray-100 p-1 rounded-xl shrink-0">
+                            <button id="btn-week-THIS" onclick="switchWeekScope('THIS')" class="px-3 py-1.5 text-[11px] font-black bg-white text-toss-text rounded-lg shadow-sm transition-all">이번 주</button>
+                            <button id="btn-week-NEXT" onclick="switchWeekScope('NEXT')" class="px-3 py-1.5 text-[11px] font-black text-gray-400 rounded-lg transition-all">다음 주</button>
+                        </div>
+                    </div>
+                    <div id="weekly-day-list" class="space-y-2"></div>
+                </div>
+
                 <div id="song-empty-state" class="hidden text-center py-16 bg-toss-card rounded-[28px] shadow-toss">
                     <div class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
                         <i class="fa-solid fa-music text-2xl text-gray-300"></i>

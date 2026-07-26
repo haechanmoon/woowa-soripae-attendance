@@ -14,9 +14,11 @@ import com.woowasoripae.attendance.domain.song.SongMemberRepository;
 import com.woowasoripae.attendance.global.exception.ApiException;
 import com.woowasoripae.attendance.web.schedule.dto.ScheduleRegisterRequest;
 import com.woowasoripae.attendance.web.schedule.dto.ScheduleResponse;
+import com.woowasoripae.attendance.web.schedule.dto.WeeklyScheduleResponse;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.temporal.TemporalAdjusters;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -158,6 +160,139 @@ class ScheduleServiceTest {
                     .isInstanceOf(ApiException.class)
                     .extracting(e -> ((ApiException) e).getStatus())
                     .isEqualTo(HttpStatus.NOT_FOUND);
+        }
+    }
+
+    /**
+     * "요일별로 누가 오는지"를 한 화면에서 보기 위한 주간 집계.
+     * 집계 규칙(7일이 빠짐없이 나오는가, 같은 시각끼리 묶이는가, 인원수를 어떻게 세는가)이 핵심이므로
+     * 저장소가 돌려준 원본 데이터와 집계 결과의 관계로 검증한다.
+     */
+    @Nested
+    @DisplayName("getWeeklySchedule - 요일별 출석 현황")
+    class WeeklyView {
+
+        private Member memberOf(long id, String name, String part) {
+            Member m = new Member(name, null, part);
+            ReflectionTestUtils.setField(m, "id", id);
+            return m;
+        }
+
+        private void givenSchedules(PracticeSchedule... schedules) {
+            given(practiceScheduleRepository.findWithMemberByPracticeDateBetween(any(), any()))
+                    .willReturn(List.of(schedules));
+        }
+
+        /** 서비스가 실제로 어느 주를 조회했는지 저장소 호출 인자에서 뽑아낸다. */
+        private LocalDate captureWeekStart(WeekScope scope) {
+            givenSchedules();
+            scheduleService.getWeeklySchedule(scope);
+
+            ArgumentCaptor<LocalDate> from = ArgumentCaptor.forClass(LocalDate.class);
+            ArgumentCaptor<LocalDate> to = ArgumentCaptor.forClass(LocalDate.class);
+            verify(practiceScheduleRepository).findWithMemberByPracticeDateBetween(from.capture(), to.capture());
+            assertThat(to.getValue()).isEqualTo(from.getValue().plusDays(6));
+            return from.getValue();
+        }
+
+        @Test
+        @DisplayName("등록이 하나도 없는 요일까지 포함해 월~일 7일이 순서대로 나온다")
+        void alwaysReturnsSevenDaysInOrder() {
+            givenSchedules();
+
+            WeeklyScheduleResponse response = scheduleService.getWeeklySchedule(WeekScope.NEXT);
+
+            assertThat(response.days()).hasSize(7);
+            assertThat(response.days()).extracting(WeeklyScheduleResponse.DaySchedule::dayOfWeek)
+                    .containsExactly(DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY,
+                            DayOfWeek.THURSDAY, DayOfWeek.FRIDAY, DayOfWeek.SATURDAY, DayOfWeek.SUNDAY);
+            assertThat(response.days()).allSatisfy(day -> {
+                assertThat(day.slots()).isEmpty();
+                assertThat(day.memberCount()).isZero();
+            });
+            assertThat(response.weekEnd()).isEqualTo(response.weekStart().plusDays(6));
+        }
+
+        @Test
+        @DisplayName("같은 요일의 같은 시작 시각은 한 시간대로 묶이고, 시간대는 이른 순으로 정렬된다")
+        void groupsSameStartTimeAndSortsByTime() {
+            LocalDate monday = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+            Member yumi = memberOf(1L, "김유미", "세션");
+            Member hyebin = memberOf(2L, "최혜빈", "보컬");
+            Member junho = memberOf(3L, "박준호", "세션");
+            givenSchedules(
+                    new PracticeSchedule(junho, monday, LocalTime.of(19, 0)),
+                    new PracticeSchedule(yumi, monday, LocalTime.of(13, 0)),
+                    new PracticeSchedule(hyebin, monday, LocalTime.of(13, 0))
+            );
+
+            WeeklyScheduleResponse response = scheduleService.getWeeklySchedule(WeekScope.NEXT);
+            var mondaySlots = dayOf(response, DayOfWeek.MONDAY).slots();
+
+            assertThat(mondaySlots).extracting(WeeklyScheduleResponse.TimeSlot::startTime)
+                    .containsExactly(LocalTime.of(13, 0), LocalTime.of(19, 0));
+            assertThat(mondaySlots.get(0).attendees()).extracting(WeeklyScheduleResponse.Attendee::name)
+                    .containsExactly("김유미", "최혜빈"); // 표시가 흔들리지 않도록 이름순
+            assertThat(mondaySlots.get(0).endTime()).isEqualTo(LocalTime.of(15, 0));
+            assertThat(mondaySlots.get(1).attendees()).extracting(WeeklyScheduleResponse.Attendee::name)
+                    .containsExactly("박준호");
+        }
+
+        @Test
+        @DisplayName("하루에 두 타임을 등록한 사람은 요일 인원수에서 한 명으로만 센다")
+        void countsEachMemberOncePerDay() {
+            LocalDate monday = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+            Member yumi = memberOf(1L, "김유미", "세션");
+            Member hyebin = memberOf(2L, "최혜빈", "보컬");
+            givenSchedules(
+                    new PracticeSchedule(yumi, monday, LocalTime.of(13, 0)),
+                    new PracticeSchedule(yumi, monday, LocalTime.of(19, 0)),
+                    new PracticeSchedule(hyebin, monday, LocalTime.of(19, 0))
+            );
+
+            WeeklyScheduleResponse response = scheduleService.getWeeklySchedule(WeekScope.NEXT);
+
+            assertThat(dayOf(response, DayOfWeek.MONDAY).memberCount()).isEqualTo(2);
+            assertThat(dayOf(response, DayOfWeek.MONDAY).slots()).hasSize(2);
+        }
+
+        @Test
+        @DisplayName("서로 다른 요일의 등록은 각자의 요일에만 담긴다")
+        void placesSchedulesUnderTheirOwnDay() {
+            LocalDate monday = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+            givenSchedules(
+                    new PracticeSchedule(memberOf(1L, "김유미", "세션"), monday, LocalTime.of(13, 0)),
+                    new PracticeSchedule(memberOf(2L, "최혜빈", "보컬"), monday.plusDays(3), LocalTime.of(13, 0))
+            );
+
+            WeeklyScheduleResponse response = scheduleService.getWeeklySchedule(WeekScope.NEXT);
+
+            assertThat(dayOf(response, DayOfWeek.MONDAY).memberCount()).isEqualTo(1);
+            assertThat(dayOf(response, DayOfWeek.THURSDAY).memberCount()).isEqualTo(1);
+            assertThat(response.days()).filteredOn(d -> d.memberCount() > 0).hasSize(2);
+            assertThat(response.totalCount()).isEqualTo(2);
+        }
+
+        @Test
+        @DisplayName("NEXT는 스케줄 등록이 향하는 주와 같은 주를 조회한다")
+        void nextScopeMatchesRegistrationWeek() {
+            LocalDate weekStart = captureWeekStart(WeekScope.NEXT);
+
+            assertThat(weekStart.getDayOfWeek()).isEqualTo(DayOfWeek.MONDAY);
+            assertThat(weekStart).isAfter(LocalDate.now());
+        }
+
+        @Test
+        @DisplayName("THIS는 오늘이 속한 주(월~일)를 조회한다")
+        void thisScopeCoversToday() {
+            LocalDate weekStart = captureWeekStart(WeekScope.THIS);
+
+            assertThat(weekStart.getDayOfWeek()).isEqualTo(DayOfWeek.MONDAY);
+            assertThat(LocalDate.now()).isBetween(weekStart, weekStart.plusDays(6));
+        }
+
+        private WeeklyScheduleResponse.DaySchedule dayOf(WeeklyScheduleResponse response, DayOfWeek dayOfWeek) {
+            return response.days().stream().filter(d -> d.dayOfWeek() == dayOfWeek).findFirst().orElseThrow();
         }
     }
 
