@@ -120,7 +120,7 @@ function switchWeekScope(scope) {
 
 function renderWeeklySchedule(data) {
     document.getElementById('weekly-range-label').textContent =
-        `${shortDate(data.weekStart)} ~ ${shortDate(data.weekEnd)} · 연인원 ${data.totalCount}명`;
+        `${shortDate(data.weekStart)} ~ ${shortDate(data.weekEnd)} · ${data.memberCount}명 등록`;
     const today = todayIso();
     document.getElementById('weekly-day-list').innerHTML =
         data.days.map(day => weeklyDayCard(day, today)).join('');

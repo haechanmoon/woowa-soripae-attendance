@@ -12,7 +12,9 @@ import java.util.List;
 public record WeeklyScheduleResponse(
         LocalDate weekStart,
         LocalDate weekEnd,
-        int totalCount,
+        /* 이 주에 한 번이라도 오는 사람 수. 여러 날 오는 사람이 많아 요일별 합계를 쓰면
+           부원 총원보다 큰 값이 나와 "거의 전원 등록"으로 오해된다. 그래서 중복 없는 사람 수로 센다. */
+        int memberCount,
         List<DaySchedule> days
 ) {
     /** memberCount는 같은 날 여러 타임을 등록한 사람을 한 명으로 센 인원수다. */

@@ -270,7 +270,28 @@ class ScheduleServiceTest {
             assertThat(dayOf(response, DayOfWeek.MONDAY).memberCount()).isEqualTo(1);
             assertThat(dayOf(response, DayOfWeek.THURSDAY).memberCount()).isEqualTo(1);
             assertThat(response.days()).filteredOn(d -> d.memberCount() > 0).hasSize(2);
-            assertThat(response.totalCount()).isEqualTo(2);
+            assertThat(response.memberCount()).isEqualTo(2);
+        }
+
+        @Test
+        @DisplayName("한 주에 여러 번 오는 사람도 주간 인원에서는 한 명으로만 센다")
+        void weeklyMemberCountIsDistinctAcrossDays() {
+            LocalDate monday = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+            Member yumi = memberOf(1L, "김유미", "세션");
+            Member hyebin = memberOf(2L, "최혜빈", "보컬");
+            givenSchedules(
+                    new PracticeSchedule(yumi, monday, LocalTime.of(13, 0)),
+                    new PracticeSchedule(yumi, monday.plusDays(2), LocalTime.of(13, 0)),
+                    new PracticeSchedule(yumi, monday.plusDays(4), LocalTime.of(19, 0)),
+                    new PracticeSchedule(hyebin, monday.plusDays(2), LocalTime.of(13, 0))
+            );
+
+            WeeklyScheduleResponse response = scheduleService.getWeeklySchedule(WeekScope.NEXT);
+
+            // 주 3회 오는 김유미 + 1회 오는 최혜빈 = 2명. 요일별 합계(4)와 달라야 한다.
+            assertThat(response.memberCount()).isEqualTo(2);
+            assertThat(response.days().stream().mapToInt(WeeklyScheduleResponse.DaySchedule::memberCount).sum())
+                    .isEqualTo(4);
         }
 
         @Test

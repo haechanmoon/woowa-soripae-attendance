@@ -101,16 +101,17 @@ public class ScheduleService {
                 .stream().collect(Collectors.groupingBy(PracticeSchedule::getPracticeDate));
 
         List<WeeklyScheduleResponse.DaySchedule> days = new ArrayList<>();
-        int totalCount = 0;
+        Set<Long> weeklyMemberIds = new HashSet<>();
         for (int i = 0; i < 7; i++) {
             LocalDate date = weekStart.plusDays(i);
             List<PracticeSchedule> ofDay = byDate.getOrDefault(date, List.of());
             // 한 사람이 하루에 여러 타임을 등록해도 "몇 명 오는지"에서는 한 명이다.
             int memberCount = (int) ofDay.stream().map(s -> s.getMember().getId()).distinct().count();
-            totalCount += memberCount;
+            ofDay.forEach(s -> weeklyMemberIds.add(s.getMember().getId()));
             days.add(new WeeklyScheduleResponse.DaySchedule(date, date.getDayOfWeek(), memberCount, toSlots(ofDay)));
         }
-        return new WeeklyScheduleResponse(weekStart, weekEnd, totalCount, days);
+        // 주 3회 오는 사람이 흔해, 요일별 합계로는 실제 참여 인원을 알 수 없다.
+        return new WeeklyScheduleResponse(weekStart, weekEnd, weeklyMemberIds.size(), days);
     }
 
     /** 같은 시작 시각끼리 한 칸으로 묶는다. 칸은 이른 시간부터, 칸 안의 이름은 이름순으로 고정해 표시가 흔들리지 않게 한다. */
