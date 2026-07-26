@@ -98,6 +98,44 @@ async function loadAdminRoster() {
         showToast(e.message);
     }
     loadNextWeekRegistration();
+    loadUncertified();
+}
+
+/** 오늘 오기로 해놓고 인증을 안 올린 사람. 자동 처리하지 않고 임원이 보고 판단하도록 목록만 띄운다. */
+async function loadUncertified() {
+    try {
+        renderUncertified(await api(`/api/attendance-records/uncertified?date=${todayIso()}`));
+    } catch (e) {
+        // 부가 정보라 실패해도 조용히 무시한다.
+    }
+}
+
+function renderUncertified(list) {
+    document.getElementById('uncertified-label').textContent =
+        list.length === 0 ? '오늘 등록자는 모두 인증했어요' : `${list.length}명이 아직 인증하지 않았어요`;
+
+    const el = document.getElementById('uncertified-list');
+    if (list.length === 0) {
+        el.innerHTML = `<p class="text-sm font-black text-toss-green text-center py-4 bg-green-50 rounded-2xl border border-green-100">모두 인증 완료 🎉</p>`;
+        return;
+    }
+    const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
+    el.innerHTML = list.map(m => {
+        const [h, min] = m.scheduledStartTime.split(':').map(Number);
+        const elapsed = nowMinutes - (h * 60 + min);
+        // 아직 시작 전이면 '안 온 사람'이 아니므로 경과 대신 예정으로 적는다.
+        const when = elapsed < 0
+            ? `<span class="text-[10px] font-bold text-toss-subText">${formatTime(m.scheduledStartTime)} 예정</span>`
+            : `<span class="text-[10px] font-black text-toss-red">${formatTime(m.scheduledStartTime)} · ${Math.floor(elapsed / 60)}시간 ${elapsed % 60}분 경과</span>`;
+        return `
+            <div class="flex items-center justify-between p-3.5 rounded-2xl border ${elapsed < 0 ? 'bg-gray-50 border-gray-100' : 'bg-red-50/50 border-red-100'}">
+                <div class="flex items-center space-x-2 min-w-0">
+                    <span class="text-sm font-black text-toss-text">${m.name}</span>
+                    <span class="text-[10px] font-bold text-toss-subText">${m.part}</span>
+                </div>
+                ${when}
+            </div>`;
+    }).join('');
 }
 
 async function loadNextWeekRegistration() {
@@ -241,9 +279,7 @@ async function setRosterStatus(memberId, status) {
         await api('/api/attendance-records/face-check', {
             method: 'PUT',
             body: JSON.stringify({
-                memberId, practiceDate: todayIso(),
-                scheduledStartTime: CORE_START, scheduledEndTime: CORE_END,
-                result: status, lateMinutes: null
+                memberId, practiceDate: todayIso(), result: status, lateMinutes: null
             })
         });
         showToast(status === 'PRESENT' ? '출석 처리되었습니다.' : '결석 처리되었습니다.');
@@ -260,9 +296,7 @@ async function saveLate(memberId) {
         await api('/api/attendance-records/face-check', {
             method: 'PUT',
             body: JSON.stringify({
-                memberId, practiceDate: todayIso(),
-                scheduledStartTime: CORE_START, scheduledEndTime: CORE_END,
-                result: 'LATE', lateMinutes: min
+                memberId, practiceDate: todayIso(), result: 'LATE', lateMinutes: min
             })
         });
         showToast(min >= 60 ? '60분 이상 지각으로 결석 처리되었습니다.' : `${min}분 지각 처리 완료`);

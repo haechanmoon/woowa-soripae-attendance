@@ -37,16 +37,18 @@ public class ScheduleService {
         this.songMemberRepository = songMemberRepository;
     }
 
-    /** "다음 주 스케줄 등록": 오늘 이후 돌아오는 첫 번째 해당 요일(오늘과 같은 요일이어도 반드시 다음 주)로 등록한다. */
+    /**
+     * "다음 주 스케줄 등록": 오늘 이후 돌아오는 첫 번째 해당 요일(오늘과 같은 요일이어도 반드시 다음 주)로 등록한다.
+     * 출석이 하루 한 번이면 인정되므로 등록도 하루 한 타임만 받는다.
+     */
     @Transactional
     public ScheduleResponse register(Long memberId, ScheduleRegisterRequest request) {
         Member member = getMember(memberId);
         LocalDate practiceDate = resolveNextOccurrence(request.dayOfWeek());
 
-        practiceScheduleRepository.findByMemberIdAndPracticeDateAndStartTime(memberId, practiceDate, request.startTime())
-                .ifPresent(existing -> {
-                    throw ApiException.conflict("이미 추가된 시간입니다.");
-                });
+        if (!practiceScheduleRepository.findByMemberIdAndPracticeDateOrderByStartTimeAsc(memberId, practiceDate).isEmpty()) {
+            throw ApiException.conflict("그날은 이미 등록했어요. 시간을 바꾸려면 기존 스케줄을 지우고 다시 등록해주세요.");
+        }
 
         PracticeSchedule schedule = new PracticeSchedule(member, practiceDate, request.startTime());
         return ScheduleResponse.from(practiceScheduleRepository.save(schedule));
@@ -121,7 +123,6 @@ public class ScheduleService {
                 .entrySet().stream()
                 .map(entry -> new WeeklyScheduleResponse.TimeSlot(
                         entry.getKey(),
-                        entry.getValue().get(0).getEndTime(),
                         entry.getValue().stream()
                                 .map(PracticeSchedule::getMember)
                                 .sorted(Comparator.comparing(Member::getName))

@@ -65,8 +65,8 @@ class ScheduleServiceTest {
     /** register()가 저장하려 한 PracticeSchedule을 가로채 실제 계산된 날짜를 확인한다. */
     private LocalDate captureRegisteredDate(DayOfWeek dayOfWeek) {
         given(memberRepository.findById(1L)).willReturn(Optional.of(member));
-        given(practiceScheduleRepository.findByMemberIdAndPracticeDateAndStartTime(any(), any(), any()))
-                .willReturn(Optional.empty());
+        given(practiceScheduleRepository.findByMemberIdAndPracticeDateOrderByStartTimeAsc(any(), any()))
+                .willReturn(List.of());
         given(practiceScheduleRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
         scheduleService.register(1L, new ScheduleRegisterRequest(dayOfWeek, START));
@@ -95,8 +95,8 @@ class ScheduleServiceTest {
         @DisplayName("월~일 7개 요일이 월요일로 시작하는 연속된 한 주를 이룬다")
         void sevenDaysFormOneConsecutiveWeek() {
             given(memberRepository.findById(1L)).willReturn(Optional.of(member));
-            given(practiceScheduleRepository.findByMemberIdAndPracticeDateAndStartTime(any(), any(), any()))
-                    .willReturn(Optional.empty());
+            given(practiceScheduleRepository.findByMemberIdAndPracticeDateOrderByStartTimeAsc(any(), any()))
+                    .willReturn(List.of());
             given(practiceScheduleRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
             Arrays.stream(DayOfWeek.values())
@@ -120,29 +120,30 @@ class ScheduleServiceTest {
     class RegisterValidation {
 
         @Test
-        @DisplayName("종료 시각은 시작 시각의 2시간 뒤로 고정된다")
-        void endTimeIsAlwaysTwoHoursAfterStart() {
+        @DisplayName("시작 시각만 저장한다 (합주를 몇 시간 하든 출석은 하루 한 번이라 종료 시각은 쓰지 않는다)")
+        void storesStartTimeOnly() {
             given(memberRepository.findById(1L)).willReturn(Optional.of(member));
-            given(practiceScheduleRepository.findByMemberIdAndPracticeDateAndStartTime(any(), any(), any()))
-                    .willReturn(Optional.empty());
+            given(practiceScheduleRepository.findByMemberIdAndPracticeDateOrderByStartTimeAsc(any(), any()))
+                    .willReturn(List.of());
             given(practiceScheduleRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
             ScheduleResponse response = scheduleService.register(
                     1L, new ScheduleRegisterRequest(DayOfWeek.MONDAY, LocalTime.of(19, 30)));
 
             assertThat(response.startTime()).isEqualTo(LocalTime.of(19, 30));
-            assertThat(response.endTime()).isEqualTo(LocalTime.of(21, 30));
         }
 
         @Test
-        @DisplayName("같은 날짜/시각으로 이미 등록했으면 409를 던진다")
-        void throwsConflictOnDuplicate() {
+        @DisplayName("같은 날짜에 이미 등록했으면 시각이 달라도 409를 던진다 (하루 한 타임)")
+        void throwsConflictWhenAlreadyRegisteredThatDay() {
+            LocalDate alreadyRegistered = LocalDate.now().plusDays(3);
             given(memberRepository.findById(1L)).willReturn(Optional.of(member));
-            given(practiceScheduleRepository.findByMemberIdAndPracticeDateAndStartTime(any(), any(), any()))
-                    .willReturn(Optional.of(new PracticeSchedule(member, LocalDate.now().plusDays(3), START)));
+            given(practiceScheduleRepository.findByMemberIdAndPracticeDateOrderByStartTimeAsc(any(), any()))
+                    .willReturn(List.of(new PracticeSchedule(member, alreadyRegistered, LocalTime.of(13, 0))));
 
+            // 13시가 이미 있는 날에 19시를 추가로 등록하려는 상황
             assertThatThrownBy(() -> scheduleService.register(
-                    1L, new ScheduleRegisterRequest(DayOfWeek.MONDAY, START)))
+                    1L, new ScheduleRegisterRequest(DayOfWeek.MONDAY, LocalTime.of(19, 0))))
                     .isInstanceOf(ApiException.class)
                     .extracting(e -> ((ApiException) e).getStatus())
                     .isEqualTo(HttpStatus.CONFLICT);
@@ -233,7 +234,6 @@ class ScheduleServiceTest {
                     .containsExactly(LocalTime.of(13, 0), LocalTime.of(19, 0));
             assertThat(mondaySlots.get(0).attendees()).extracting(WeeklyScheduleResponse.Attendee::name)
                     .containsExactly("김유미", "최혜빈"); // 표시가 흔들리지 않도록 이름순
-            assertThat(mondaySlots.get(0).endTime()).isEqualTo(LocalTime.of(15, 0));
             assertThat(mondaySlots.get(1).attendees()).extracting(WeeklyScheduleResponse.Attendee::name)
                     .containsExactly("박준호");
         }

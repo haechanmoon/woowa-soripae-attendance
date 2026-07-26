@@ -8,7 +8,7 @@ async function startApp() {
     document.getElementById('header-date').textContent = formatTodayKorean();
     document.getElementById('nav-admin').classList.toggle('hidden', !state.member.officer);
     switchTab('home');
-    await Promise.all([loadFineSummary(), loadCalendar(), loadEventBanner(), restoreAdminAuth()]);
+    await Promise.all([loadFineSummary(), loadCalendar(), loadEventBanner(), loadTodayCard(), restoreAdminAuth()]);
     // 사진 촬영 중 앱이 새로고침돼 인증 화면을 벗어났다면, 저장해둔 사진으로 복원한다.
     await restorePendingPhoto();
 }
@@ -26,7 +26,7 @@ function handleTabClick(targetTab) {
     }
     switchTab(targetTab);
     if (targetTab === 'certify') { loadMemberHistory(); loadCertifySchedules(); }
-    if (targetTab === 'home') { loadFineSummary(); loadCalendar(); loadEventBanner(); }
+    if (targetTab === 'home') { loadFineSummary(); loadCalendar(); loadEventBanner(); loadTodayCard(); }
     if (targetTab === 'song') { loadMySongs(); loadWeeklySchedule(); }
 }
 

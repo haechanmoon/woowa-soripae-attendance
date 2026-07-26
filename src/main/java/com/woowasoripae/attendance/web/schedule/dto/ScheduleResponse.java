@@ -11,8 +11,7 @@ public record ScheduleResponse(
         String memberName,
         LocalDate practiceDate,
         DayOfWeek dayOfWeek,
-        LocalTime startTime,
-        LocalTime endTime
+        LocalTime startTime
 ) {
     public static ScheduleResponse from(PracticeSchedule schedule) {
         return new ScheduleResponse(
@@ -21,8 +20,7 @@ public record ScheduleResponse(
                 schedule.getMember().getName(),
                 schedule.getPracticeDate(),
                 schedule.getPracticeDate().getDayOfWeek(),
-                schedule.getStartTime(),
-                schedule.getEndTime()
+                schedule.getStartTime()
         );
     }
 }

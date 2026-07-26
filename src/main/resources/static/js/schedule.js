@@ -57,7 +57,7 @@ function renderMySchedules(list) {
         return;
     }
     list.forEach(s => {
-        const text = `${DAY_LABEL[s.dayOfWeek]}요일 ${formatTime(s.startTime)} - ${formatTime(s.endTime)}`;
+        const text = `${DAY_LABEL[s.dayOfWeek]}요일 ${formatTime(s.startTime)} 시작`;
         el.insertAdjacentHTML('beforeend', `
             <div class="flex justify-between items-center bg-blue-50 p-4 rounded-2xl border border-blue-100/50">
                 <span class="text-sm font-black text-toss-blue"><i class="fa-solid fa-check mr-2 opacity-50"></i>${text}</span>

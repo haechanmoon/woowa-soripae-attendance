@@ -1,8 +1,7 @@
 // ---------- 인증하기 ----------
 
+/** 지각 기준 시각은 서버가 정한다(등록한 스케줄 > 없으면 코어타임). 부원에겐 그 결과만 알려준다. */
 async function loadCertifySchedules() {
-    const sel = document.getElementById('certify-schedule');
-    sel.innerHTML = '';
     let todaysSlots = [];
     try {
         const list = await api(`/api/members/${state.member.id}/schedules`);
@@ -11,20 +10,19 @@ async function loadCertifySchedules() {
         showToast(e.message);
     }
 
-    const hasCore = todaysSlots.some(s => formatTime(s.startTime) === CORE_START);
-    if (!hasCore) {
-        sel.insertAdjacentHTML('beforeend', `<option value="${CORE_START}">${CORE_START} - ${CORE_END} (코어타임)</option>`);
-    }
-    todaysSlots
+    const registered = todaysSlots
         .slice()
-        .sort((a, b) => a.startTime.localeCompare(b.startTime))
-        .forEach(s => {
-            const start = formatTime(s.startTime);
-            const label = start === CORE_START
-                ? `${start} - ${formatTime(s.endTime)} (코어타임)`
-                : `${start} - ${formatTime(s.endTime)}`;
-            sel.insertAdjacentHTML('beforeend', `<option value="${start}">${label}</option>`);
-        });
+        .sort((a, b) => a.startTime.localeCompare(b.startTime))[0];
+
+    document.getElementById('certify-baseline-time').textContent =
+        registered ? `${formatTime(registered.startTime)} 기준` : `${CORE_START} 기준`;
+    document.getElementById('certify-baseline-note').textContent = registered
+        ? '내가 등록해둔 시간이에요. 하루 한 번만 인증하면 출석 인정됩니다.'
+        : '오늘 등록한 스케줄이 없어 코어타임이 기준이에요. 하루 한 번만 인증하면 출석 인정됩니다.';
+}
+
+function toggleAttendanceRule() {
+    document.getElementById('attendance-rule-box').classList.toggle('hidden');
 }
 
 /** 큰 원본 사진을 화면·업로드·임시저장에 알맞게 축소한 JPEG dataURL로 변환한다.
@@ -71,7 +69,6 @@ function setCertifyPhoto(dataUrl) {
     document.getElementById('upload-prompt').classList.add('hidden');
     try {
         localStorage.setItem('soripae_pending_photo', dataUrl);
-        localStorage.setItem('soripae_pending_schedule', document.getElementById('certify-schedule').value || '');
     } catch (e) {
         // 용량 초과 등으로 저장이 안 돼도 현재 세션에서는 제출 가능하므로 무시한다.
     }
@@ -80,7 +77,6 @@ function setCertifyPhoto(dataUrl) {
 function clearPendingPhoto() {
     state.pendingPhotoDataUrl = null;
     localStorage.removeItem('soripae_pending_photo');
-    localStorage.removeItem('soripae_pending_schedule');
     document.getElementById('photo-preview').classList.add('hidden');
     document.getElementById('upload-prompt').classList.remove('hidden');
 }
@@ -93,9 +89,6 @@ async function restorePendingPhoto() {
     switchTab('certify');
     await loadCertifySchedules();
     loadMemberHistory();
-    const saved = localStorage.getItem('soripae_pending_schedule');
-    const sel = document.getElementById('certify-schedule');
-    if (saved && [...sel.options].some(o => o.value === saved)) sel.value = saved;
     setCertifyPhoto(dataUrl);
     showToast('올려둔 사진을 복원했어요. 인증 요청을 이어서 눌러주세요!');
 }
@@ -111,13 +104,11 @@ async function previewPhoto(input) {
 }
 
 async function submitAttendance() {
-    const scheduledVal = document.getElementById('certify-schedule').value;
     const dataUrl = state.pendingPhotoDataUrl || localStorage.getItem('soripae_pending_photo');
     if (!dataUrl) return showToast('인증 사진을 올려주세요.');
 
     const formData = new FormData();
     formData.append('memberId', state.member.id);
-    formData.append('scheduledStartTime', scheduledVal);
     formData.append('photo', dataUrlToBlob(dataUrl), 'attendance.jpg');
 
     try {
@@ -167,7 +158,7 @@ function renderMemberHistory(list) {
                 <div class="flex items-center space-x-4">
                     <img src="${photoSrc}" class="w-14 h-14 rounded-2xl object-cover border border-gray-100">
                     <div>
-                        <p class="text-sm font-black text-toss-text mb-1">${formatTime(r.scheduledStartTime)} - ${formatTime(r.scheduledEndTime)}</p>
+                        <p class="text-sm font-black text-toss-text mb-1">${formatTime(r.scheduledStartTime)} 기준</p>
                         <p class="text-[11px] font-bold text-toss-subText bg-gray-50 inline-block px-2 py-0.5 rounded-md">${r.practiceDate}</p>
                     </div>
                 </div>

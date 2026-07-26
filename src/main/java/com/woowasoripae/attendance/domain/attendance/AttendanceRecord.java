@@ -22,7 +22,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * One member's attendance outcome for one practice session (a member + a date + a scheduled start time).
+ * One member's attendance outcome for one day (a member + a date).
+ * 곡이 몇 개든, 몇 시간을 하든 하루 한 번 인증하면 출석으로 인정한다.
+ * scheduledStartTime은 지각을 몇 분으로 볼지 판정하는 기준 시각이다.
  * PHOTO records start life PENDING and are finalized by an officer via approve()/reject().
  * FACE_TO_FACE records are finalized immediately by decideFaceToFace().
  */
@@ -30,7 +32,7 @@ import lombok.NoArgsConstructor;
 @Entity
 @Table(
         name = "attendance_record",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"member_id", "practice_date", "scheduled_start_time"})
+        uniqueConstraints = @UniqueConstraint(columnNames = {"member_id", "practice_date"})
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class AttendanceRecord extends BaseTimeEntity {
@@ -46,11 +48,9 @@ public class AttendanceRecord extends BaseTimeEntity {
     @Column(name = "practice_date", nullable = false)
     private LocalDate practiceDate;
 
+    /** 지각 판정 기준 시각. 그날 등록한 스케줄의 시작 시각이고, 등록이 없으면 코어타임이다. */
     @Column(name = "scheduled_start_time", nullable = false)
     private LocalTime scheduledStartTime;
-
-    @Column(name = "scheduled_end_time", nullable = false)
-    private LocalTime scheduledEndTime;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -77,14 +77,13 @@ public class AttendanceRecord extends BaseTimeEntity {
     private LocalDateTime decidedAt;
 
     public static AttendanceRecord createPendingPhotoSubmission(
-            Member member, LocalDate practiceDate, LocalTime scheduledStartTime, LocalTime scheduledEndTime,
+            Member member, LocalDate practiceDate, LocalTime scheduledStartTime,
             String photoUrl, LocalDateTime submittedAt
     ) {
         AttendanceRecord record = new AttendanceRecord();
         record.member = member;
         record.practiceDate = practiceDate;
         record.scheduledStartTime = scheduledStartTime;
-        record.scheduledEndTime = scheduledEndTime;
         record.method = AttendanceMethod.PHOTO;
         record.status = AttendanceStatus.PENDING;
         record.photoUrl = photoUrl;
@@ -95,14 +94,13 @@ public class AttendanceRecord extends BaseTimeEntity {
     }
 
     public static AttendanceRecord createFaceToFaceDecision(
-            Member member, LocalDate practiceDate, LocalTime scheduledStartTime, LocalTime scheduledEndTime,
+            Member member, LocalDate practiceDate, LocalTime scheduledStartTime,
             FineCalculator.Evaluation evaluation, LocalDateTime decidedAt
     ) {
         AttendanceRecord record = new AttendanceRecord();
         record.member = member;
         record.practiceDate = practiceDate;
         record.scheduledStartTime = scheduledStartTime;
-        record.scheduledEndTime = scheduledEndTime;
         record.method = AttendanceMethod.FACE_TO_FACE;
         record.submittedAt = decidedAt;
         record.applyDecision(evaluation, decidedAt);

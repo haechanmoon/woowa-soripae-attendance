@@ -18,12 +18,15 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-/** A member's registered slot for an upcoming practice date. Always exactly 2 hours long. */
+/**
+ * A member's registered slot for an upcoming practice date.
+ * 합주를 몇 시간 하든 출석은 하루 한 번이면 인정되므로 종료 시각은 두지 않고 시작 시각만 기록한다.
+ */
 @Getter
 @Entity
 @Table(
         name = "practice_schedule",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"member_id", "practice_date", "start_time"})
+        uniqueConstraints = @UniqueConstraint(columnNames = {"member_id", "practice_date"})
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class PracticeSchedule extends BaseTimeEntity {
@@ -42,13 +45,9 @@ public class PracticeSchedule extends BaseTimeEntity {
     @Column(name = "start_time", nullable = false)
     private LocalTime startTime;
 
-    @Column(name = "end_time", nullable = false)
-    private LocalTime endTime;
-
     public PracticeSchedule(Member member, LocalDate practiceDate, LocalTime startTime) {
         this.member = member;
         this.practiceDate = practiceDate;
         this.startTime = startTime;
-        this.endTime = startTime.plusHours(2);
     }
 }

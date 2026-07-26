@@ -20,7 +20,7 @@ public record WeeklyScheduleResponse(
     /** memberCount는 같은 날 여러 타임을 등록한 사람을 한 명으로 센 인원수다. */
     public record DaySchedule(LocalDate date, DayOfWeek dayOfWeek, int memberCount, List<TimeSlot> slots) {}
 
-    public record TimeSlot(LocalTime startTime, LocalTime endTime, List<Attendee> attendees) {}
+    public record TimeSlot(LocalTime startTime, List<Attendee> attendees) {}
 
     public record Attendee(Long memberId, String name, String part) {}
 }

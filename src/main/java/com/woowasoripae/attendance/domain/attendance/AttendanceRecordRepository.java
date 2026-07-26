@@ -21,8 +21,7 @@ public interface AttendanceRecordRepository extends JpaRepository<AttendanceReco
 
     List<AttendanceRecord> findByPracticeDate(LocalDate practiceDate);
 
-    Optional<AttendanceRecord> findByMemberIdAndPracticeDateAndScheduledStartTime(
-            Long memberId, LocalDate practiceDate, LocalTime scheduledStartTime);
+    Optional<AttendanceRecord> findByMemberIdAndPracticeDate(Long memberId, LocalDate practiceDate);
 
     @Query("select coalesce(sum(a.fineAmount), 0) from AttendanceRecord a where a.member.id = :memberId")
     int sumFineAmountByMemberId(@Param("memberId") Long memberId);

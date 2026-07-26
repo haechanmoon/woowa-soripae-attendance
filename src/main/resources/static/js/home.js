@@ -31,6 +31,45 @@ function daysBetween(fromIso, toIso) {
     return Math.round((new Date(toIso) - new Date(fromIso)) / 86400000);
 }
 
+/**
+ * 오늘 등록한 합주가 있는지, 인증은 했는지를 홈 맨 위에서 바로 보여준다.
+ * 인증 탭까지 들어가야만 알 수 있으면 그냥 잊어버리기 때문에 홈에 둔다.
+ */
+async function loadTodayCard() {
+    const card = document.getElementById('today-card');
+    if (!card) return;
+    const today = todayIso();
+    try {
+        const [schedules, records] = await Promise.all([
+            api(`/api/members/${state.member.id}/schedules`),
+            api(`/api/members/${state.member.id}/attendance-records?year=${new Date().getFullYear()}&month=${new Date().getMonth() + 1}`),
+        ]);
+        const mySlot = schedules.find(s => s.practiceDate === today);
+        const myRecord = records.find(r => r.practiceDate === today && r.status !== 'REJECTED');
+
+        // 오늘 등록도 없고 인증도 없으면 보여줄 게 없다.
+        if (!mySlot && !myRecord) {
+            card.classList.add('hidden');
+            return;
+        }
+        document.getElementById('today-card-time').textContent =
+            mySlot ? `${formatTime(mySlot.startTime)} 시작` : '등록한 시간 없음';
+
+        const status = document.getElementById('today-card-status');
+        const action = document.getElementById('today-card-action');
+        if (myRecord) {
+            status.textContent = myRecord.status === 'PENDING' ? '인증 완료 · 임원 승인 대기 중' : '오늘 출석 인정됐어요';
+            action.classList.add('hidden');
+        } else {
+            status.textContent = '아직 인증 전이에요. 하루 한 번이면 끝나요.';
+            action.classList.remove('hidden');
+        }
+        card.classList.remove('hidden');
+    } catch (e) {
+        card.classList.add('hidden'); // 부가 정보라 실패해도 조용히 숨긴다.
+    }
+}
+
 async function loadFineSummary() {
     try {
         const data = await api(`/api/members/${state.member.id}/fines`);
@@ -61,20 +100,20 @@ async function loadCalendar() {
 
         // 스케줄만 등록하고 아직 인증(사진/대면)을 안 한 날짜는 실제 기록이 없어 캘린더에서 빠져 보였다.
         // 아직 인증 전인 등록 스케줄을 'SCHEDULED'로 채워서 같이 보여준다.
-        const recordKeys = new Set(records.map(r => `${r.practiceDate}_${r.scheduledStartTime}`));
+        // 하루 한 건이므로 날짜만으로 '이미 인증한 날'을 가려낸다.
+        const recordDates = new Set(records.map(r => r.practiceDate));
         const scheduledOnly = schedules
             .filter(s => {
                 const [y, m] = s.practiceDate.split('-').map(Number);
                 return y === state.calYear && m === state.calMonth;
             })
-            .filter(s => !recordKeys.has(`${s.practiceDate}_${s.startTime}`))
+            .filter(s => !recordDates.has(s.practiceDate))
             .map(s => ({
                 practiceDate: s.practiceDate,
                 memberName: state.member.name,
                 status: 'SCHEDULED',
                 lateMinutes: 0,
                 scheduledStartTime: s.startTime,
-                scheduledEndTime: s.endTime,
             }));
 
         state.calendarRecords = [...records, ...scheduledOnly];
@@ -169,7 +208,7 @@ function openCalSheet(day) {
         const statusEl = document.getElementById('cal-status');
         statusEl.textContent = meta.label;
         statusEl.className = 'text-base font-black px-3 py-1 rounded-lg border ' + meta.badge;
-        document.getElementById('cal-time').textContent = `${formatTime(record.scheduledStartTime)} - ${formatTime(record.scheduledEndTime)}`;
+        document.getElementById('cal-time').textContent = `${formatTime(record.scheduledStartTime)} 기준`;
         attendanceBlock.classList.remove('hidden');
     } else {
         document.getElementById('cal-member-name').textContent = '';

@@ -4,9 +4,9 @@ import com.woowasoripae.attendance.domain.attendance.AttendanceService;
 import com.woowasoripae.attendance.web.attendance.dto.ApproveAttendanceRequest;
 import com.woowasoripae.attendance.web.attendance.dto.AttendanceRecordResponse;
 import com.woowasoripae.attendance.web.attendance.dto.FaceCheckRequest;
+import com.woowasoripae.attendance.web.attendance.dto.UncertifiedMemberResponse;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.time.YearMonth;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -31,14 +31,16 @@ public class AttendanceController {
         this.attendanceService = attendanceService;
     }
 
-    /** 인증하기 탭 > "인증 요청하기": 사진 업로드로 출석을 제출한다 (PENDING으로 시작, 임원 승인 대기). */
+    /**
+     * 인증하기 탭 > "인증 요청하기": 사진 업로드로 출석을 제출한다 (PENDING으로 시작, 임원 승인 대기).
+     * 하루 한 번이면 출석 인정이라 부원이 시간을 고를 필요가 없고, 지각 기준 시각은 서버가 정한다.
+     */
     @PostMapping(value = "/api/attendance-records", consumes = "multipart/form-data")
     public ResponseEntity<AttendanceRecordResponse> submitPhoto(
             @RequestParam Long memberId,
-            @RequestParam LocalTime scheduledStartTime,
             @RequestParam MultipartFile photo
     ) {
-        AttendanceRecordResponse response = attendanceService.submitPhoto(memberId, scheduledStartTime, photo);
+        AttendanceRecordResponse response = attendanceService.submitPhoto(memberId, photo);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -65,6 +67,12 @@ public class AttendanceController {
     public ResponseEntity<Void> delete(@PathVariable Long recordId) {
         attendanceService.delete(recordId);
         return ResponseEntity.noContent().build();
+    }
+
+    /** 임원 관리 > 대면 체크: 오늘 오기로 해놓고 아직 인증을 안 올린 부원. 임원이 보고 판단하도록 목록만 준다. */
+    @GetMapping("/api/attendance-records/uncertified")
+    public List<UncertifiedMemberResponse> getUncertified(@RequestParam(required = false) LocalDate date) {
+        return attendanceService.getUncertifiedMembers(date != null ? date : LocalDate.now());
     }
 
     /** 임원 관리 > 사진 승인 대기열 목록. */
