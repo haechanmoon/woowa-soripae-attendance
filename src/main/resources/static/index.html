@@ -50,7 +50,12 @@
 <body>
 
     <!-- 로그인(본인 선택) 화면 -->
-    <div id="login-screen" class="min-h-screen flex flex-col items-center px-6 pt-20 pb-10 bg-toss-bg">
+    <div id="login-screen" class="relative min-h-screen flex flex-col items-center px-6 pt-20 pb-10 bg-toss-bg">
+        <!-- 접속 통계. 서버가 만드는 정적 페이지라 앱과 별개로 열리고, 자체 비밀번호로 막혀 있다. -->
+        <a href="/stats/" class="absolute top-5 right-5 flex items-center space-x-1.5 px-3 py-2 bg-white border border-gray-200 rounded-full shadow-sm text-toss-subText active:scale-95 transition-transform">
+            <i class="fa-solid fa-chart-simple text-[11px]"></i>
+            <span class="text-[11px] font-black">통계</span>
+        </a>
         <h1 class="text-3xl font-black text-toss-text mb-1 tracking-tight">소리패 시스템</h1>
         <p class="text-sm font-bold text-toss-subText mb-8">본인 이름을 선택해주세요</p>
         <div id="login-status" class="text-xs font-bold text-toss-subText mb-4"></div>
