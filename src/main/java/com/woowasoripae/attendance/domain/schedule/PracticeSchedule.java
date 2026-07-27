@@ -50,4 +50,9 @@ public class PracticeSchedule extends BaseTimeEntity {
         this.practiceDate = practiceDate;
         this.startTime = startTime;
     }
+
+    /** 하루 한 타임이라 시간을 바꾸는 건 지웠다 만드는 게 아니라 그 자리를 옮기는 일이다. */
+    public void changeStartTime(LocalTime startTime) {
+        this.startTime = startTime;
+    }
 }

@@ -13,7 +13,9 @@ import com.woowasoripae.attendance.domain.member.MemberRepository;
 import com.woowasoripae.attendance.domain.song.SongMemberRepository;
 import com.woowasoripae.attendance.global.exception.ApiException;
 import com.woowasoripae.attendance.web.schedule.dto.ScheduleRegisterRequest;
+import com.woowasoripae.attendance.web.schedule.dto.ThisWeekChangeRequest;
 import com.woowasoripae.attendance.web.schedule.dto.ScheduleResponse;
+import com.woowasoripae.attendance.web.schedule.dto.WeekRegistrationResponse;
 import com.woowasoripae.attendance.web.schedule.dto.WeeklyScheduleResponse;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -49,6 +51,8 @@ class ScheduleServiceTest {
     private MemberRepository memberRepository;
     @Mock
     private SongMemberRepository songMemberRepository;
+    @Mock
+    private ScheduleChangeLogRepository scheduleChangeLogRepository;
 
     private ScheduleService scheduleService;
 
@@ -57,7 +61,8 @@ class ScheduleServiceTest {
 
     @BeforeEach
     void setUp() {
-        scheduleService = new ScheduleService(practiceScheduleRepository, memberRepository, songMemberRepository);
+        scheduleService = new ScheduleService(practiceScheduleRepository, memberRepository, songMemberRepository,
+                scheduleChangeLogRepository);
         member = new Member("김유미", null, "세션");
         ReflectionTestUtils.setField(member, "id", 1L);
     }
@@ -314,6 +319,323 @@ class ScheduleServiceTest {
 
         private WeeklyScheduleResponse.DaySchedule dayOf(WeeklyScheduleResponse response, DayOfWeek dayOfWeek) {
             return response.days().stream().filter(d -> d.dayOfWeek() == dayOfWeek).findFirst().orElseThrow();
+        }
+    }
+
+    /**
+     * 등록 마감이 일요일이라, 주 초의 "다음 주 미등록 전원"은 이상 신호가 아니다.
+     * 반대로 이번 주 미등록은 이제 되돌릴 수 없는 확정된 결과다. 두 주가 성격이 달라 각각 볼 수 있어야 한다.
+     */
+    @Nested
+    @DisplayName("getRegistrationStatus - 주별 스케줄 등록 현황")
+    class RegistrationStatus {
+
+        private Member memberOf(long id, String name, String part) {
+            Member m = new Member(name, null, part);
+            ReflectionTestUtils.setField(m, "id", id);
+            return m;
+        }
+
+        /** 곡에 배정된 부원만 등록 대상이므로, 배정 목록과 등록된 스케줄을 함께 깔아준다. */
+        private void givenAssigned(List<Member> assigned, PracticeSchedule... registered) {
+            given(memberRepository.findAll()).willReturn(assigned);
+            given(songMemberRepository.findDistinctMemberIds())
+                    .willReturn(assigned.stream().map(Member::getId).toList());
+            given(practiceScheduleRepository.findByPracticeDateBetween(any(), any()))
+                    .willReturn(List.of(registered));
+        }
+
+        /** 서비스가 실제로 어느 주를 조회했는지 저장소 호출 인자에서 뽑아낸다. */
+        private LocalDate captureWeekStart() {
+            ArgumentCaptor<LocalDate> from = ArgumentCaptor.forClass(LocalDate.class);
+            ArgumentCaptor<LocalDate> to = ArgumentCaptor.forClass(LocalDate.class);
+            verify(practiceScheduleRepository).findByPracticeDateBetween(from.capture(), to.capture());
+            assertThat(to.getValue()).isEqualTo(from.getValue().plusDays(6));
+            return from.getValue();
+        }
+
+        private List<String> namesOf(List<WeekRegistrationResponse.MemberBrief> briefs) {
+            return briefs.stream().map(WeekRegistrationResponse.MemberBrief::name).toList();
+        }
+
+        @Test
+        @DisplayName("등록한 사람과 안 한 사람을 갈라 담고, 둘을 합치면 곡 배정 인원이 된다")
+        void splitsAssignedMembersByRegistration() {
+            Member yumi = memberOf(1L, "김유미", "세션");
+            Member hyebin = memberOf(2L, "최혜빈", "보컬");
+            Member junho = memberOf(3L, "박준호", "세션");
+            givenAssigned(List.of(yumi, hyebin, junho),
+                    new PracticeSchedule(yumi, LocalDate.now(), START));
+
+            WeekRegistrationResponse response = scheduleService.getRegistrationStatus(WeekScope.THIS);
+
+            assertThat(namesOf(response.registered())).containsExactly("김유미");
+            assertThat(namesOf(response.notRegistered())).containsExactly("최혜빈", "박준호");
+            assertThat(response.registered().size() + response.notRegistered().size()).isEqualTo(3);
+        }
+
+        @Test
+        @DisplayName("곡에 배정되지 않은 부원은 등록할 이유가 없으므로 어느 쪽에도 세지 않는다")
+        void excludesMembersWithoutSongAssignment() {
+            Member yumi = memberOf(1L, "김유미", "세션");
+            Member newbie = memberOf(9L, "신입", "보컬");
+            given(memberRepository.findAll()).willReturn(List.of(yumi, newbie));
+            given(songMemberRepository.findDistinctMemberIds()).willReturn(List.of(1L));
+            given(practiceScheduleRepository.findByPracticeDateBetween(any(), any())).willReturn(List.of());
+
+            WeekRegistrationResponse response = scheduleService.getRegistrationStatus(WeekScope.THIS);
+
+            assertThat(namesOf(response.notRegistered())).containsExactly("김유미");
+            assertThat(response.registered()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("한 주에 여러 날 등록한 사람도 등록 인원에서는 한 명이다")
+        void countsEachMemberOnce() {
+            Member yumi = memberOf(1L, "김유미", "세션");
+            LocalDate monday = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+            givenAssigned(List.of(yumi),
+                    new PracticeSchedule(yumi, monday, START),
+                    new PracticeSchedule(yumi, monday.plusDays(2), START));
+
+            WeekRegistrationResponse response = scheduleService.getRegistrationStatus(WeekScope.THIS);
+
+            assertThat(response.registered()).hasSize(1);
+            assertThat(response.notRegistered()).isEmpty();
+        }
+
+        @ParameterizedTest
+        @EnumSource(WeekScope.class)
+        @DisplayName("요청한 주를 그대로 조회하고, 어느 주를 봤는지 응답에 실어 보낸다")
+        void looksUpRequestedWeekAndEchoesIt(WeekScope scope) {
+            givenAssigned(List.of());
+
+            WeekRegistrationResponse response = scheduleService.getRegistrationStatus(scope);
+
+            assertThat(response.scope()).isEqualTo(scope);
+            assertThat(captureWeekStart()).isEqualTo(scope.weekStart(LocalDate.now()));
+            assertThat(response.weekEnd()).isEqualTo(response.weekStart().plusDays(6));
+        }
+
+        @Test
+        @DisplayName("주를 지정하지 않으면 오늘 요일에 맞는 기본 주를 골라 조회한다")
+        void picksDefaultWeekWhenScopeOmitted() {
+            givenAssigned(List.of());
+
+            WeekRegistrationResponse response = scheduleService.getRegistrationStatus(null);
+
+            WeekScope expected = WeekScope.defaultForRegistration(LocalDate.now());
+            assertThat(response.scope()).isEqualTo(expected);
+            assertThat(captureWeekStart()).isEqualTo(expected.weekStart(LocalDate.now()));
+        }
+
+        @Test
+        @DisplayName("다음 주는 아직 마감 전이라 남은 날을 알려준다")
+        void tellsRemainingDaysForNextWeek() {
+            givenAssigned(List.of());
+
+            WeekRegistrationResponse response = scheduleService.getRegistrationStatus(WeekScope.NEXT);
+
+            assertThat(response.daysUntilDeadline()).isBetween(0, 6);
+        }
+
+        @Test
+        @DisplayName("이번 주는 이미 마감이 지나 되돌릴 수 없으므로 남은 날이 없다")
+        void hasNoDeadlineForThisWeek() {
+            givenAssigned(List.of());
+
+            WeekRegistrationResponse response = scheduleService.getRegistrationStatus(WeekScope.THIS);
+
+            assertThat(response.daysUntilDeadline()).isNull();
+        }
+
+        @Test
+        @DisplayName("이번 주는 손쓸 수 없으니 독려할 대상이 아니다")
+        void thisWeekIsNeverUrgent() {
+            givenAssigned(List.of());
+
+            assertThat(scheduleService.getRegistrationStatus(WeekScope.THIS).urgent()).isFalse();
+        }
+
+        @Test
+        @DisplayName("다음 주가 급한지 여부는 마감까지 남은 날 하나로 정해진다 (화면이 임의로 기준을 정하지 않는다)")
+        void urgencyFollowsRemainingDays() {
+            givenAssigned(List.of());
+
+            WeekRegistrationResponse response = scheduleService.getRegistrationStatus(WeekScope.NEXT);
+
+            assertThat(response.urgent()).isEqualTo(response.daysUntilDeadline() <= WeekScope.URGENT_DAYS);
+            // 기본 탭이 다음 주로 넘어가는 날부터 빨갛게 보여야 설명이 하나로 이어진다.
+            assertThat(response.urgent())
+                    .isEqualTo(WeekScope.defaultForRegistration(LocalDate.now()) == WeekScope.NEXT);
+        }
+    }
+
+    /**
+     * 마감(일요일)이 지난 뒤 이번 주를 바꾸는 길. 승인 게이트 없이 바로 반영하되 사유를 남긴다.
+     * 막아버리면 "못 가게 됐어요"가 조용한 회피가 되고, 승인을 기다리게 하면 합주를 다녀와도 인증을 못 한다.
+     * 대신 기록이 남아 임원이 사후에 보고 판단한다.
+     */
+    @Nested
+    @DisplayName("changeThisWeek - 마감 후 이번 주 변경")
+    class ChangeThisWeek {
+
+        private final LocalDate today = LocalDate.now();
+        private final LocalTime NEW_TIME = LocalTime.of(19, 0);
+
+        private ThisWeekChangeRequest change(LocalDate date, LocalTime startTime) {
+            return new ThisWeekChangeRequest(date, startTime, "까먹고 못 올렸어요");
+        }
+
+        private void givenScheduleOn(LocalDate date, LocalTime startTime) {
+            given(memberRepository.findById(1L)).willReturn(Optional.of(member));
+            given(practiceScheduleRepository.findByMemberIdAndPracticeDateOrderByStartTimeAsc(1L, date))
+                    .willReturn(startTime == null ? List.of() : List.of(new PracticeSchedule(member, date, startTime)));
+        }
+
+        private ScheduleChangeLog captureLog() {
+            ArgumentCaptor<ScheduleChangeLog> captor = ArgumentCaptor.forClass(ScheduleChangeLog.class);
+            verify(scheduleChangeLogRepository).save(captor.capture());
+            return captor.getValue();
+        }
+
+        @Test
+        @DisplayName("등록이 없던 날에 시각을 주면 새로 만들고, 기록에는 이전 시각이 비어 있다")
+        void addsScheduleAndLogsAsNew() {
+            givenScheduleOn(today, null);
+            given(practiceScheduleRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+
+            scheduleService.changeThisWeek(1L, change(today, NEW_TIME));
+
+            ArgumentCaptor<PracticeSchedule> saved = ArgumentCaptor.forClass(PracticeSchedule.class);
+            verify(practiceScheduleRepository).save(saved.capture());
+            assertThat(saved.getValue().getStartTime()).isEqualTo(NEW_TIME);
+            assertThat(saved.getValue().getPracticeDate()).isEqualTo(today);
+
+            ScheduleChangeLog log = captureLog();
+            assertThat(log.getPreviousStartTime()).isNull();
+            assertThat(log.getNewStartTime()).isEqualTo(NEW_TIME);
+        }
+
+        @Test
+        @DisplayName("이미 등록한 날에 다른 시각을 주면 그 자리를 바꾸고, 기록에 이전과 이후가 모두 남는다")
+        void movesScheduleAndLogsBothTimes() {
+            givenScheduleOn(today, START);
+            given(practiceScheduleRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+
+            scheduleService.changeThisWeek(1L, change(today, NEW_TIME));
+
+            ScheduleChangeLog log = captureLog();
+            assertThat(log.getPreviousStartTime()).isEqualTo(START);
+            assertThat(log.getNewStartTime()).isEqualTo(NEW_TIME);
+            // 하루 한 타임이므로 새로 만들지 않고 기존 것을 옮긴다.
+            verify(practiceScheduleRepository, never()).delete(any());
+        }
+
+        @Test
+        @DisplayName("시각을 비우면 그날 등록을 지우고, 기록에는 이후 시각이 비어 있다")
+        void cancelsScheduleAndLogsAsRemoved() {
+            givenScheduleOn(today, START);
+
+            scheduleService.changeThisWeek(1L, change(today, null));
+
+            verify(practiceScheduleRepository).delete(any());
+            ScheduleChangeLog log = captureLog();
+            assertThat(log.getPreviousStartTime()).isEqualTo(START);
+            assertThat(log.getNewStartTime()).isNull();
+        }
+
+        @Test
+        @DisplayName("지울 등록이 없는데 취소하면 404를 던진다")
+        void throwsNotFoundWhenCancelingNothing() {
+            givenScheduleOn(today, null);
+
+            assertThatThrownBy(() -> scheduleService.changeThisWeek(1L, change(today, null)))
+                    .isInstanceOf(ApiException.class)
+                    .extracting(e -> ((ApiException) e).getStatus())
+                    .isEqualTo(HttpStatus.NOT_FOUND);
+
+            verify(scheduleChangeLogRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("이미 지난 날은 바꿀 수 없다 (지나간 합주를 뒤늦게 만들어낼 수 없다)")
+        void rejectsPastDates() {
+            assertThatThrownBy(() -> scheduleService.changeThisWeek(1L, change(today.minusDays(1), NEW_TIME)))
+                    .isInstanceOf(ApiException.class)
+                    .extracting(e -> ((ApiException) e).getStatus())
+                    .isEqualTo(HttpStatus.BAD_REQUEST);
+
+            verify(practiceScheduleRepository, never()).save(any());
+            verify(scheduleChangeLogRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("오늘은 바꿀 수 있다 (아직 합주 전일 수 있다)")
+        void allowsToday() {
+            givenScheduleOn(today, null);
+            given(practiceScheduleRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+
+            scheduleService.changeThisWeek(1L, change(today, NEW_TIME));
+
+            verify(practiceScheduleRepository).save(any());
+        }
+
+        @Test
+        @DisplayName("이번 주를 넘어선 날은 이 통로로 바꿀 수 없다 (다음 주는 평소 등록으로)")
+        void rejectsDatesBeyondThisWeek() {
+            LocalDate nextWeek = WeekScope.NEXT.weekStart(today);
+
+            assertThatThrownBy(() -> scheduleService.changeThisWeek(1L, change(nextWeek, NEW_TIME)))
+                    .isInstanceOf(ApiException.class)
+                    .extracting(e -> ((ApiException) e).getStatus())
+                    .isEqualTo(HttpStatus.BAD_REQUEST);
+        }
+
+        @Test
+        @DisplayName("사유는 손대지 않고 그대로 기록에 남는다 (임원이 판단할 근거가 이것뿐이다)")
+        void keepsReasonVerbatim() {
+            givenScheduleOn(today, null);
+            given(practiceScheduleRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+
+            scheduleService.changeThisWeek(1L, new ThisWeekChangeRequest(today, NEW_TIME, "알바 시간이 바뀌었어요"));
+
+            assertThat(captureLog().getReason()).isEqualTo("알바 시간이 바뀌었어요");
+            assertThat(captureLog().getMember()).isEqualTo(member);
+        }
+    }
+
+    @Nested
+    @DisplayName("getThisWeekChanges - 임원이 보는 이번 주 변경 내역")
+    class ThisWeekChanges {
+
+        @Test
+        @DisplayName("이번 주(월~일) 범위로 조회한다")
+        void looksUpThisWeek() {
+            given(scheduleChangeLogRepository.findWithMemberByPracticeDateBetween(any(), any()))
+                    .willReturn(List.of());
+
+            scheduleService.getThisWeekChanges();
+
+            ArgumentCaptor<LocalDate> from = ArgumentCaptor.forClass(LocalDate.class);
+            ArgumentCaptor<LocalDate> to = ArgumentCaptor.forClass(LocalDate.class);
+            verify(scheduleChangeLogRepository).findWithMemberByPracticeDateBetween(from.capture(), to.capture());
+
+            assertThat(from.getValue()).isEqualTo(WeekScope.THIS.weekStart(LocalDate.now()));
+            assertThat(to.getValue()).isEqualTo(from.getValue().plusDays(6));
+        }
+
+        @Test
+        @DisplayName("무엇이 바뀐 것인지(등록/이동/취소)는 남은 시각으로 판별된다")
+        void classifiesChangeByStoredTimes() {
+            LocalDate date = LocalDate.now();
+
+            assertThat(new ScheduleChangeLog(member, date, null, START, "사유").kind())
+                    .isEqualTo(ScheduleChangeLog.Kind.ADDED);
+            assertThat(new ScheduleChangeLog(member, date, START, LocalTime.of(19, 0), "사유").kind())
+                    .isEqualTo(ScheduleChangeLog.Kind.MOVED);
+            assertThat(new ScheduleChangeLog(member, date, START, null, "사유").kind())
+                    .isEqualTo(ScheduleChangeLog.Kind.CANCELED);
         }
     }
 

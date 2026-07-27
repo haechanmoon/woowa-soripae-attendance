@@ -15,6 +15,13 @@ const state = {
     currentPoll: null,
     selectedSongMemberIds: new Set(),
     weekScope: 'THIS',
+    // 등록 현황은 첫 조회 때 서버가 오늘 요일에 맞는 주를 골라준다. 그전까지는 어느 탭인지 모른다.
+    registrationScope: null,
+    registrationExpanded: false,
+    registrationData: null,
+    rosterNoScheduleExpanded: false,
+    mySchedules: [],
+    thisWeekEditing: null,
     pendingPhotoDataUrl: null,
 };
 

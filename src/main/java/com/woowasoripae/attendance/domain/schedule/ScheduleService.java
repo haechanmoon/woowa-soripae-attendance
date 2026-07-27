@@ -4,12 +4,15 @@ import com.woowasoripae.attendance.domain.member.Member;
 import com.woowasoripae.attendance.domain.member.MemberRepository;
 import com.woowasoripae.attendance.domain.song.SongMemberRepository;
 import com.woowasoripae.attendance.global.exception.ApiException;
-import com.woowasoripae.attendance.web.schedule.dto.NextWeekRegistrationResponse;
+import com.woowasoripae.attendance.web.schedule.dto.ScheduleChangeLogResponse;
 import com.woowasoripae.attendance.web.schedule.dto.ScheduleRegisterRequest;
 import com.woowasoripae.attendance.web.schedule.dto.ScheduleResponse;
+import com.woowasoripae.attendance.web.schedule.dto.ThisWeekChangeRequest;
+import com.woowasoripae.attendance.web.schedule.dto.WeekRegistrationResponse;
 import com.woowasoripae.attendance.web.schedule.dto.WeeklyScheduleResponse;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -29,12 +32,14 @@ public class ScheduleService {
     private final PracticeScheduleRepository practiceScheduleRepository;
     private final MemberRepository memberRepository;
     private final SongMemberRepository songMemberRepository;
+    private final ScheduleChangeLogRepository scheduleChangeLogRepository;
 
     public ScheduleService(PracticeScheduleRepository practiceScheduleRepository, MemberRepository memberRepository,
-            SongMemberRepository songMemberRepository) {
+            SongMemberRepository songMemberRepository, ScheduleChangeLogRepository scheduleChangeLogRepository) {
         this.practiceScheduleRepository = practiceScheduleRepository;
         this.memberRepository = memberRepository;
         this.songMemberRepository = songMemberRepository;
+        this.scheduleChangeLogRepository = scheduleChangeLogRepository;
     }
 
     /**
@@ -54,6 +59,61 @@ public class ScheduleService {
         return ScheduleResponse.from(practiceScheduleRepository.save(schedule));
     }
 
+    /**
+     * 마감이 지난 뒤 이번 주 스케줄을 바꾼다. 승인을 기다리지 않고 바로 반영하고, 사유와 함께 흔적만 남긴다.
+     * 막아두면 "못 가게 됐어요"가 조용한 회피가 되고, 승인을 기다리게 하면 합주를 다녀와도 인증을 못 하기 때문이다.
+     * startTime이 비어 있으면 그날 등록을 취소한다는 뜻이라, 등록/시간 변경/취소가 이 한 갈래로 처리된다.
+     */
+    @Transactional
+    public ScheduleResponse changeThisWeek(Long memberId, ThisWeekChangeRequest request) {
+        LocalDate today = LocalDate.now();
+        LocalDate target = request.practiceDate();
+        if (target.isBefore(today)) {
+            throw ApiException.badRequest("이미 지난 날은 바꿀 수 없어요.");
+        }
+        if (target.isAfter(WeekScope.THIS.weekStart(today).plusDays(6))) {
+            throw ApiException.badRequest("다음 주는 '다음 주 스케줄 등록'에서 해주세요.");
+        }
+        Member member = getMember(memberId);
+
+        PracticeSchedule existing = practiceScheduleRepository
+                .findByMemberIdAndPracticeDateOrderByStartTimeAsc(memberId, target)
+                .stream().findFirst().orElse(null);
+        LocalTime previous = existing != null ? existing.getStartTime() : null;
+
+        ScheduleResponse response = request.startTime() == null
+                ? cancel(existing, target)
+                : upsert(member, existing, target, request.startTime());
+
+        scheduleChangeLogRepository.save(
+                new ScheduleChangeLog(member, target, previous, request.startTime(), request.reason()));
+        return response;
+    }
+
+    private ScheduleResponse cancel(PracticeSchedule existing, LocalDate target) {
+        if (existing == null) {
+            throw ApiException.notFound("그날은 등록한 스케줄이 없어요. date=" + target);
+        }
+        practiceScheduleRepository.delete(existing);
+        return null;
+    }
+
+    /** 하루 한 타임이므로 시각만 옮기면 된다. 지웠다 다시 만들면 유니크 제약과 부딪힌다. */
+    private ScheduleResponse upsert(Member member, PracticeSchedule existing, LocalDate target, LocalTime startTime) {
+        if (existing == null) {
+            return ScheduleResponse.from(practiceScheduleRepository.save(new PracticeSchedule(member, target, startTime)));
+        }
+        existing.changeStartTime(startTime);
+        return ScheduleResponse.from(practiceScheduleRepository.save(existing));
+    }
+
+    /** 임원 관리: 마감 후 이번 주에 일어난 변경 내역. 승인 대상이 아니라 "물어볼 거리"를 모아 보여준다. */
+    public List<ScheduleChangeLogResponse> getThisWeekChanges() {
+        LocalDate weekStart = WeekScope.THIS.weekStart(LocalDate.now());
+        return scheduleChangeLogRepository.findWithMemberByPracticeDateBetween(weekStart, weekStart.plusDays(6))
+                .stream().map(ScheduleChangeLogResponse::from).toList();
+    }
+
     public List<ScheduleResponse> getUpcomingSchedules(Long memberId) {
         getMember(memberId);
         return practiceScheduleRepository
@@ -68,26 +128,34 @@ public class ScheduleService {
     }
 
     /**
-     * 임원 관리: 다음 주(다음 월~일)에 스케줄을 아직 등록하지 않은 부원을 파악한다.
+     * 임원 관리: 한 주(월~일)에 스케줄을 아직 등록하지 않은 부원을 파악한다.
      * 곡에 배정된 부원(=합주 대상)만 대상으로 한다. 배정이 없는 부원은 등록할 이유가 없어 제외한다.
+     * scope를 주지 않으면 오늘 요일에 맞는 주를 고른다. 마감이 일요일이라 주 초에 다음 주가 전원 미등록인 건
+     * 이상 신호가 아니어서, 그때는 이미 확정된 이번 주 결과를 먼저 보여주는 편이 쓸모 있다.
      */
-    public NextWeekRegistrationResponse getNextWeekRegistration() {
-        LocalDate weekStart = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+    public WeekRegistrationResponse getRegistrationStatus(WeekScope scope) {
+        LocalDate today = LocalDate.now();
+        WeekScope resolved = scope != null ? scope : WeekScope.defaultForRegistration(today);
+        LocalDate weekStart = resolved.weekStart(today);
         LocalDate weekEnd = weekStart.plusDays(6);
+
         Set<Long> registeredIds = practiceScheduleRepository.findByPracticeDateBetween(weekStart, weekEnd)
                 .stream().map(s -> s.getMember().getId()).collect(Collectors.toSet());
         Set<Long> assignedIds = new HashSet<>(songMemberRepository.findDistinctMemberIds());
 
-        List<NextWeekRegistrationResponse.MemberBrief> registered = new ArrayList<>();
-        List<NextWeekRegistrationResponse.MemberBrief> notRegistered = new ArrayList<>();
+        List<WeekRegistrationResponse.MemberBrief> registered = new ArrayList<>();
+        List<WeekRegistrationResponse.MemberBrief> notRegistered = new ArrayList<>();
         for (Member member : memberRepository.findAll()) {
             if (!assignedIds.contains(member.getId())) {
                 continue; // 곡 배정이 없는 부원은 합주 스케줄 등록 대상이 아니므로 집계에서 제외
             }
-            var brief = new NextWeekRegistrationResponse.MemberBrief(member.getId(), member.getName(), member.getPart());
+            var brief = new WeekRegistrationResponse.MemberBrief(member.getId(), member.getName(), member.getPart());
             (registeredIds.contains(member.getId()) ? registered : notRegistered).add(brief);
         }
-        return new NextWeekRegistrationResponse(weekStart, weekEnd, registered, notRegistered);
+        // 이번 주는 마감이 지나 더 등록할 수 없으니, 남은 날도 독려도 의미가 없다.
+        Integer daysLeft = resolved == WeekScope.NEXT ? WeekScope.daysUntilDeadline(today) : null;
+        boolean urgent = daysLeft != null && daysLeft <= WeekScope.URGENT_DAYS;
+        return new WeekRegistrationResponse(resolved, weekStart, weekEnd, daysLeft, urgent, registered, notRegistered);
     }
 
     /**

@@ -97,7 +97,8 @@ async function loadAdminRoster() {
     } catch (e) {
         showToast(e.message);
     }
-    loadNextWeekRegistration();
+    loadRegistrationStatus();
+    loadThisWeekChanges();
     loadUncertified();
 }
 
@@ -138,50 +139,174 @@ function renderUncertified(list) {
     }).join('');
 }
 
-async function loadNextWeekRegistration() {
+/** 마감이 일요일이라 주 초의 "다음 주 전원 미등록"은 당연한 상태다. 처음엔 서버가 요일에 맞는 주를 골라준다. */
+async function loadRegistrationStatus() {
+    const query = state.registrationScope ? `?scope=${state.registrationScope}` : '';
     try {
-        const data = await api('/api/schedules/next-week-registration');
-        renderNextWeekRegistration(data);
+        renderRegistrationStatus(await api(`/api/schedules/registration${query}`));
     } catch (e) {
         // 부가 정보라 실패해도 조용히 무시한다.
     }
 }
 
-function renderNextWeekRegistration(data) {
-    const fmt = iso => { const [, m, d] = iso.split('-').map(Number); return `${m}/${d}`; };
-    const total = data.registered.length + data.notRegistered.length;
-    document.getElementById('next-week-range-label').textContent =
-        `${fmt(data.weekStart)} ~ ${fmt(data.weekEnd)} · 곡 배정 ${total}명 중 미등록 ${data.notRegistered.length}명`;
+function switchRegistrationScope(scope) {
+    if (state.registrationScope === scope) return;
+    state.registrationScope = scope;
+    state.registrationExpanded = false; // 주를 바꾸면 다시 요약부터 본다
+    loadRegistrationStatus();
+}
 
-    const list = document.getElementById('next-week-unregistered-list');
+/** 펼치기는 이미 받아둔 목록을 보여주기만 하면 되므로 서버를 다시 부르지 않는다. */
+function toggleRegistrationList() {
+    state.registrationExpanded = !state.registrationExpanded;
+    renderRegistrationStatus(state.registrationData);
+}
+
+function renderRegistrationStatus(data) {
+    state.registrationData = data;
+    state.registrationScope = data.scope;
+    ['THIS', 'NEXT'].forEach(key => {
+        document.getElementById(`btn-reg-${key}`).className = key === data.scope
+            ? "px-3 py-1.5 text-[11px] font-black bg-white text-toss-text rounded-lg shadow-sm transition-all"
+            : "px-3 py-1.5 text-[11px] font-black text-gray-400 rounded-lg transition-all";
+    });
+
+    const total = data.registered.length + data.notRegistered.length;
+    const missing = data.notRegistered.length;
+    document.getElementById('registration-range-label').textContent =
+        `${shortDate(data.weekStart)} ~ ${shortDate(data.weekEnd)}${registrationDeadlineNote(data)}`;
+
+    const el = document.getElementById('registration-summary');
     if (total === 0) {
-        list.innerHTML = `<p class="text-sm font-bold text-gray-400 text-center py-4 bg-gray-50 rounded-2xl border border-gray-100">아직 곡에 배정된 부원이 없어요.</p>`;
+        el.innerHTML = `<p class="text-sm font-bold text-gray-400 text-center py-4 bg-gray-50 rounded-2xl border border-gray-100">아직 곡에 배정된 부원이 없어요.</p>`;
         return;
     }
-    if (data.notRegistered.length === 0) {
-        list.innerHTML = `<p class="text-sm font-black text-toss-green text-center py-4 bg-green-50 rounded-2xl border border-green-100">전원 등록 완료 🎉</p>`;
+    if (missing === 0) {
+        el.innerHTML = `<p class="text-sm font-black text-toss-green text-center py-4 bg-green-50 rounded-2xl border border-green-100">${total}명 전원 등록 완료 🎉</p>`;
         return;
     }
-    list.innerHTML = `<div class="flex flex-wrap gap-2">` + data.notRegistered.map(m =>
-        `<span class="px-3 py-1.5 text-xs font-black text-toss-red bg-red-50 border border-red-100 rounded-full">${m.name}<span class="text-[10px] font-bold text-red-300 ml-1">${m.part}</span></span>`
-    ).join('') + `</div>`;
+    el.innerHTML = registrationSummaryBar(data, total, missing) + registrationNameList(data, missing);
+}
+
+/** 마감 전(다음 주)에만 남은 날을 알려준다. 이번 주는 이미 지나 손쓸 수 없다. */
+function registrationDeadlineNote(data) {
+    if (data.scope !== 'NEXT') return ' · 마감된 주';
+    return data.daysUntilDeadline === 0 ? ' · 오늘 자정 마감' : ` · 일요일 마감까지 ${data.daysUntilDeadline}일`;
+}
+
+/**
+ * 접힌 상태에서도 "몇 명 중 몇 명"이 바로 보이게 한다.
+ * 색은 인원수가 아니라 급한 정도로 정한다. 마감이 코앞인 다음 주만 빨갛고, 여유 있거나 이미 지난 주는 무채색이다.
+ */
+function registrationSummaryBar(data, total, missing) {
+    const tone = data.urgent
+        ? { text: 'text-toss-red', bar: 'bg-toss-red', chip: 'text-toss-red bg-red-50 border-red-100' }
+        : { text: 'text-toss-text', bar: 'bg-gray-400', chip: 'text-gray-500 bg-gray-100 border-gray-200' };
+    const arrow = state.registrationExpanded ? '▲' : '▼';
+
+    return `
+        <button onclick="toggleRegistrationList()" class="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-left active:scale-[0.99] transition-transform">
+            <div class="flex items-center justify-between mb-2.5">
+                <span class="text-sm font-black text-toss-text">등록 <span class="${tone.text}">${data.registered.length}</span><span class="text-toss-subText">/${total}</span></span>
+                <span class="flex items-center space-x-1.5">
+                    <span class="px-2 py-0.5 text-[11px] font-black border rounded-md ${tone.chip}">미등록 ${missing}명</span>
+                    <span class="text-[10px] text-gray-400">${arrow}</span>
+                </span>
+            </div>
+            <div class="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                <div class="h-full ${tone.bar} rounded-full transition-all" style="width: ${Math.round(data.registered.length / total * 100)}%"></div>
+            </div>
+        </button>`;
+}
+
+function registrationNameList(data, missing) {
+    if (!state.registrationExpanded) return '';
+    const chip = data.urgent
+        ? { box: 'text-toss-red bg-red-50 border-red-100', part: 'text-red-300' }
+        : { box: 'text-gray-600 bg-gray-50 border-gray-200', part: 'text-gray-400' };
+    return `
+        <div class="mt-3">
+            <p class="text-[11px] font-black text-toss-subText px-1 mb-2">미등록 ${missing}명</p>
+            <div class="flex flex-wrap gap-2">${data.notRegistered.map(m =>
+                `<span class="px-3 py-1.5 text-xs font-black border rounded-full ${chip.box}">${m.name}<span class="text-[10px] font-bold ml-1 ${chip.part}">${m.part}</span></span>`
+            ).join('')}</div>
+        </div>`;
+}
+
+/** 마감 후 이번 주를 바꾼 사람들. 승인할 것이 아니라 "물어볼 거리"를 모아 보여준다. */
+async function loadThisWeekChanges() {
+    try {
+        renderThisWeekChanges(await api('/api/schedules/this-week-changes'));
+    } catch (e) {
+        // 부가 정보라 실패해도 조용히 무시한다.
+    }
+}
+
+const CHANGE_KIND = {
+    ADDED: { text: '늦게 등록', tone: 'text-toss-blue bg-blue-50 border-blue-100' },
+    MOVED: { text: '시간 변경', tone: 'text-gray-500 bg-gray-100 border-gray-200' },
+    // 가기로 해놓고 접은 쪽이라 임원이 가장 눈여겨봐야 한다.
+    CANCELED: { text: '취소', tone: 'text-toss-red bg-red-50 border-red-100' },
+};
+
+function renderThisWeekChanges(list) {
+    document.getElementById('this-week-changes-label').textContent =
+        list.length === 0 ? '마감 후 바꾼 사람이 없어요' : `${list.length}건 · 사유를 보고 판단해주세요`;
+
+    const el = document.getElementById('this-week-changes-list');
+    if (list.length === 0) {
+        el.innerHTML = `<p class="text-sm font-bold text-gray-400 text-center py-4 bg-gray-50 rounded-2xl border border-gray-100">변경 없음</p>`;
+        return;
+    }
+    el.innerHTML = list.map(c => {
+        const kind = CHANGE_KIND[c.kind];
+        const when = c.previousStartTime && c.newStartTime
+            ? `${formatTime(c.previousStartTime)} → ${formatTime(c.newStartTime)}`
+            : formatTime(c.newStartTime || c.previousStartTime);
+        return `
+            <div class="p-4 rounded-2xl border bg-gray-50 border-gray-100">
+                <div class="flex items-center justify-between mb-1.5">
+                    <span class="flex items-center space-x-2 min-w-0">
+                        <span class="text-sm font-black text-toss-text">${c.memberName}</span>
+                        <span class="text-[10px] font-bold text-toss-subText">${c.part}</span>
+                    </span>
+                    <span class="px-2 py-0.5 text-[10px] font-black border rounded-md ${kind.tone}">${kind.text}</span>
+                </div>
+                <p class="text-[11px] font-bold text-toss-subText mb-2">${shortDate(c.practiceDate)} · ${when}</p>
+                <p class="text-xs font-bold text-toss-text bg-white px-3 py-2 rounded-xl border border-gray-100">${c.reason}</p>
+            </div>`;
+    }).join('');
+}
+
+function toggleRosterNoSchedule() {
+    state.rosterNoScheduleExpanded = !state.rosterNoScheduleExpanded;
+    renderAdminRoster();
 }
 
 function renderAdminRoster() {
     const el = document.getElementById('admin-roster-list');
     el.innerHTML = '';
 
-    const registered = state.allMembers.filter(m => state.todayScheduleByMember[m.id]);
-    const notRegistered = state.allMembers.filter(m => !state.todayScheduleByMember[m.id]);
+    const scheduled = state.allMembers.filter(m => state.todayScheduleByMember[m.id]);
+    // 오늘 일정이 없을 뿐 이번 주 미등록자와는 다르다. 대부분이 여기 들어가 명단을 덮어버리므로 접어둔다.
+    const noSchedule = state.allMembers.filter(m => !state.todayScheduleByMember[m.id]);
 
-    if (registered.length > 0) {
-        el.insertAdjacentHTML('beforeend', `<h4 class="text-xs font-black text-toss-blue px-1 mb-2">오늘 등록 (${registered.length}명)</h4>`);
-        registered.forEach(m => renderRosterCard(el, m));
+    if (scheduled.length > 0) {
+        el.insertAdjacentHTML('beforeend', `<h4 class="text-xs font-black text-toss-blue px-1 mb-2">오늘 등록 (${scheduled.length}명)</h4>`);
+        scheduled.forEach(m => renderRosterCard(el, m));
     }
-    if (notRegistered.length > 0) {
-        el.insertAdjacentHTML('beforeend', `<h4 class="text-xs font-black text-gray-400 px-1 mb-2 ${registered.length > 0 ? 'mt-5' : ''}">미등록 (${notRegistered.length}명)</h4>`);
-        notRegistered.forEach(m => renderRosterCard(el, m));
+    if (noSchedule.length === 0) {
+        return;
     }
+    el.insertAdjacentHTML('beforeend', `
+        <button onclick="toggleRosterNoSchedule()" class="w-full flex items-center justify-between px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl ${scheduled.length > 0 ? 'mt-5' : ''} active:scale-[0.99] transition-transform">
+            <span class="text-xs font-black text-gray-400">오늘 일정 없음 (${noSchedule.length}명)</span>
+            <span class="text-[10px] text-gray-400">${state.rosterNoScheduleExpanded ? '▲' : '▼'}</span>
+        </button>
+        <div id="roster-no-schedule" class="space-y-4 ${state.rosterNoScheduleExpanded ? 'mt-4' : 'hidden'}"></div>`);
+
+    const box = document.getElementById('roster-no-schedule');
+    noSchedule.forEach(m => renderRosterCard(box, m));
 }
 
 function renderRosterCard(el, m) {

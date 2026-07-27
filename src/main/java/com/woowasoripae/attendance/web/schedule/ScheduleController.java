@@ -2,9 +2,11 @@ package com.woowasoripae.attendance.web.schedule;
 
 import com.woowasoripae.attendance.domain.schedule.ScheduleService;
 import com.woowasoripae.attendance.domain.schedule.WeekScope;
-import com.woowasoripae.attendance.web.schedule.dto.NextWeekRegistrationResponse;
+import com.woowasoripae.attendance.web.schedule.dto.ScheduleChangeLogResponse;
 import com.woowasoripae.attendance.web.schedule.dto.ScheduleRegisterRequest;
 import com.woowasoripae.attendance.web.schedule.dto.ScheduleResponse;
+import com.woowasoripae.attendance.web.schedule.dto.ThisWeekChangeRequest;
+import com.woowasoripae.attendance.web.schedule.dto.WeekRegistrationResponse;
 import com.woowasoripae.attendance.web.schedule.dto.WeeklyScheduleResponse;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
@@ -45,10 +47,23 @@ public class ScheduleController {
         return scheduleService.getWeeklySchedule(scope);
     }
 
-    /** 임원 관리: 다음 주 스케줄을 아직 등록하지 않은 부원 현황. */
-    @GetMapping("/api/schedules/next-week-registration")
-    public NextWeekRegistrationResponse getNextWeekRegistration() {
-        return scheduleService.getNextWeekRegistration();
+    /** 임원 관리: 스케줄을 아직 등록하지 않은 부원 현황. scope를 비우면 오늘 요일에 맞는 주를 서버가 고른다. */
+    @GetMapping("/api/schedules/registration")
+    public WeekRegistrationResponse getRegistrationStatus(@RequestParam(required = false) WeekScope scope) {
+        return scheduleService.getRegistrationStatus(scope);
+    }
+
+    /** 임원 관리: 마감 후 이번 주 스케줄을 바꾼 내역. 승인 대상이 아니라 열람용이다. */
+    @GetMapping("/api/schedules/this-week-changes")
+    public List<ScheduleChangeLogResponse> getThisWeekChanges() {
+        return scheduleService.getThisWeekChanges();
+    }
+
+    /** 마감이 지난 이번 주 스케줄을 사유와 함께 바꾼다. startTime을 비우면 그날 등록을 취소한다. */
+    @PostMapping("/api/members/{memberId}/schedules/this-week")
+    public ResponseEntity<ScheduleResponse> changeThisWeek(
+            @PathVariable Long memberId, @Valid @RequestBody ThisWeekChangeRequest request) {
+        return ResponseEntity.ok(scheduleService.changeThisWeek(memberId, request));
     }
 
     @PostMapping("/api/members/{memberId}/schedules")

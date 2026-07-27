@@ -166,7 +166,7 @@
                         <div class="bg-green-50 p-3.5 rounded-2xl border border-green-100 flex items-start space-x-2">
                             <i class="fa-solid fa-circle-info text-toss-green mt-0.5 text-sm"></i>
                             <p class="text-[11px] font-bold text-toss-green leading-snug">
-                                정규 연습(코어타임)은 <span class="font-black text-green-700">13시 시작</span>입니다.<br>몇 시간 하는지는 자유예요. 가급적 코어타임에 함께해주세요!
+                                정규 연습(코어타임)은 <span class="font-black text-green-700">13시 시작</span>입니다.<br>가급적 코어타임에 함께해주세요!
                             </p>
                         </div>
 
@@ -184,7 +184,6 @@
                                 <p class="text-[11px] font-black text-toss-blue mb-2">출석은 이렇게 인정돼요</p>
                                 <ul class="space-y-1.5 text-[11px] font-bold text-toss-subText leading-snug">
                                     <li>· <span class="text-toss-text font-black">하루에 한 번만 인증</span>하면 그날 출석이 인정됩니다. 곡이 여러 개여도 한 번이면 끝이에요.</li>
-                                    <li>· 몇 시간 연습했는지는 보지 않습니다. <span class="text-toss-text font-black">끝나는 시간은 자유</span>예요.</li>
                                     <li>· 지각은 위에 적힌 <span class="text-toss-text font-black">기준 시각</span>과 사진 올린 시각을 비교해 계산합니다.</li>
                                     <li>· 스케줄을 등록해두면 그 시각이, 등록을 안 했으면 코어타임 13시가 기준이 됩니다.</li>
                                     <li>· 60분 이상 늦으면 결석으로 처리돼요.</li>
@@ -297,11 +296,24 @@
                         <div id="uncertified-list" class="space-y-2"></div>
                     </div>
                     <div class="bg-toss-card rounded-[28px] p-6 shadow-toss">
-                        <div class="mb-4">
-                            <h3 class="text-base font-black text-toss-text">다음 주 미등록자</h3>
-                            <p id="next-week-range-label" class="text-xs font-bold text-toss-blue mt-1">-</p>
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <h3 class="text-base font-black text-toss-text">스케줄 등록 현황</h3>
+                                <p id="registration-range-label" class="text-xs font-bold text-toss-blue mt-1">-</p>
+                            </div>
+                            <div class="grid grid-cols-2 gap-1 bg-gray-100 p-1 rounded-xl shrink-0">
+                                <button id="btn-reg-THIS" onclick="switchRegistrationScope('THIS')" class="px-3 py-1.5 text-[11px] font-black text-gray-400 rounded-lg transition-all">이번 주</button>
+                                <button id="btn-reg-NEXT" onclick="switchRegistrationScope('NEXT')" class="px-3 py-1.5 text-[11px] font-black text-gray-400 rounded-lg transition-all">다음 주</button>
+                            </div>
                         </div>
-                        <div id="next-week-unregistered-list" class="space-y-2"></div>
+                        <div id="registration-summary"></div>
+                    </div>
+                    <div class="bg-toss-card rounded-[28px] p-6 shadow-toss">
+                        <div class="mb-4">
+                            <h3 class="text-base font-black text-toss-text">이번 주 변경 내역</h3>
+                            <p id="this-week-changes-label" class="text-xs font-bold text-toss-blue mt-1">-</p>
+                        </div>
+                        <div id="this-week-changes-list" class="space-y-2"></div>
                     </div>
                     <div class="bg-toss-card rounded-[28px] p-6 shadow-toss">
                         <div class="mb-5">
@@ -415,9 +427,18 @@
                 </button>
             </div>
 
-            <div class="flex-1 overflow-y-auto hide-scrollbar mb-4">
-                <h4 class="text-sm font-black text-toss-text mb-3 px-1">등록 현황 (수정/삭제)</h4>
-                <div id="my-schedule-list" class="space-y-2"></div>
+            <div class="flex-1 overflow-y-auto hide-scrollbar mb-4 space-y-6">
+                <div>
+                    <h4 class="text-sm font-black text-toss-text mb-3 px-1">다음 주 등록 현황 (수정/삭제)</h4>
+                    <div id="my-schedule-list" class="space-y-2"></div>
+                </div>
+                <div>
+                    <h4 class="text-sm font-black text-toss-text mb-1 px-1">이번 주 스케줄</h4>
+                    <p class="text-[11px] font-bold text-toss-subText mb-3 px-1 leading-snug">
+                        마감(지난 일요일)이 지나 <span class="font-black text-toss-text">사유를 적어야 바꿀 수 있어요.</span><br>바꾼 내역은 임원진에게 그대로 보입니다.
+                    </p>
+                    <div id="this-week-schedule-list" class="space-y-2"></div>
+                </div>
             </div>
 
             <button onclick="closeAllModals()" class="w-full bg-gray-800 text-white font-black text-lg p-4 rounded-2xl active:bg-gray-900 transition-colors shrink-0">

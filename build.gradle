@@ -32,6 +32,8 @@ dependencies {
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	// 테스트가 로컬 MySQL을 건드리지 않도록 인메모리 DB를 쓴다. src/test/resources/application.properties 참고.
+	testRuntimeOnly 'com.h2database:h2'
 }
 
 tasks.named('test') {
