@@ -20,6 +20,8 @@ const state = {
     registrationExpanded: false,
     registrationData: null,
     rosterNoScheduleExpanded: false,
+    // 대면 체크가 보고 있는 날짜. null이면 오늘. 임원진 탭에 새로 들어올 때마다 오늘로 되돌린다.
+    rosterDate: null,
     mySchedules: [],
     thisWeekEditing: null,
     pendingPhotoDataUrl: null,
@@ -58,15 +60,43 @@ function formatDateTime(dt) {
     return timePart.substring(0, 5);
 }
 
+function toIso(date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 function todayIso() {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return toIso(new Date());
+}
+
+/** 'yyyy-MM-dd'에서 며칠 앞뒤로 옮긴 날짜. 월/연 경계는 Date가 알아서 넘겨준다. */
+function shiftIso(iso, days) {
+    const d = new Date(iso + 'T00:00:00');
+    d.setDate(d.getDate() + days);
+    return toIso(d);
+}
+
+function formatDateKorean(iso) {
+    const d = new Date(iso + 'T00:00:00');
+    const days = ['일', '월', '화', '수', '목', '금', '토'];
+    return `${d.getFullYear()}. ${String(d.getMonth() + 1).padStart(2, '0')}. ${String(d.getDate()).padStart(2, '0')} (${days[d.getDay()]})`;
 }
 
 function formatTodayKorean() {
-    const d = new Date();
-    const days = ['일', '월', '화', '수', '목', '금', '토'];
-    return `${d.getFullYear()}. ${String(d.getMonth() + 1).padStart(2, '0')}. ${String(d.getDate()).padStart(2, '0')} (${days[d.getDay()]})`;
+    return formatDateKorean(todayIso());
+}
+
+/** 임원 대면 체크가 보고 있는 날짜. 놓친 지난 연습을 뒤늦게 정리할 수 있도록 화면에서 바꾼다. */
+function rosterDateIso() {
+    return state.rosterDate || todayIso();
+}
+
+function isRosterToday() {
+    return rosterDateIso() === todayIso();
+}
+
+/** 명단 제목에 붙일 짧은 날짜. 오늘이면 굳이 날짜를 적지 않는다. */
+function rosterDayLabel() {
+    return isRosterToday() ? '오늘' : shortDate(rosterDateIso());
 }
 
 function updateClock() {

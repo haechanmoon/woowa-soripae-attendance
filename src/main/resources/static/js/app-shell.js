@@ -20,6 +20,8 @@ function handleTabClick(targetTab) {
             return;
         }
         switchTab('admin');
+        // 지난 날짜를 정리하다 나갔더라도, 다시 들어올 땐 항상 오늘부터 시작한다.
+        state.rosterDate = null;
         loadAdminQueue();
         loadAdminRoster();
         return;
@@ -121,6 +123,7 @@ async function verifyAdminPw() {
         closePwModal();
         showToast('임원진 인증이 완료되었습니다.');
         switchTab('admin');
+        state.rosterDate = null;
         loadAdminQueue();
         loadAdminRoster();
     } catch (e) {

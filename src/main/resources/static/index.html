@@ -294,9 +294,21 @@
                 </div>
 
                 <div id="admin-view-face" class="hidden space-y-4 pb-4">
+                    <div class="bg-toss-card rounded-[28px] p-5 shadow-toss">
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="text-base font-black text-toss-text">체크할 날짜</h3>
+                            <button onclick="resetRosterDate()" id="btn-roster-today" class="hidden px-3 py-1.5 text-[11px] font-black text-toss-blue bg-blue-50 border border-blue-100 rounded-lg active:scale-95 transition-transform">오늘로</button>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="shiftRosterDate(-1)" class="w-11 h-11 shrink-0 flex items-center justify-center bg-gray-50 border border-gray-200 rounded-xl active:scale-95 transition-transform"><i class="fa-solid fa-chevron-left text-xs text-toss-subText"></i></button>
+                            <input type="date" id="roster-date-input" onchange="changeRosterDate(this.value)" class="flex-1 min-w-0 p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-black text-toss-text text-center outline-none focus:border-toss-blue">
+                            <button onclick="shiftRosterDate(1)" id="btn-roster-next" class="w-11 h-11 shrink-0 flex items-center justify-center bg-gray-50 border border-gray-200 rounded-xl active:scale-95 transition-transform"><i class="fa-solid fa-chevron-right text-xs text-toss-subText"></i></button>
+                        </div>
+                        <p id="roster-date-note" class="text-xs font-bold text-toss-blue mt-3 text-center">-</p>
+                    </div>
                     <div class="bg-toss-card rounded-[28px] p-6 shadow-toss">
                         <div class="mb-4">
-                            <h3 class="text-base font-black text-toss-text">오늘 미인증</h3>
+                            <h3 id="uncertified-title" class="text-base font-black text-toss-text">오늘 미인증</h3>
                             <p id="uncertified-label" class="text-xs font-bold text-toss-blue mt-1">-</p>
                         </div>
                         <div id="uncertified-list" class="space-y-2"></div>
@@ -323,8 +335,8 @@
                     </div>
                     <div class="bg-toss-card rounded-[28px] p-6 shadow-toss">
                         <div class="mb-5">
-                            <h3 class="text-base font-black text-toss-text">오늘의 대면 출석 명단</h3>
-                            <p class="text-xs font-bold text-toss-blue mt-1">하루 한 번 체크하면 출석 인정</p>
+                            <h3 id="roster-title" class="text-base font-black text-toss-text">오늘의 대면 출석 명단</h3>
+                            <p id="roster-subtitle" class="text-xs font-bold text-toss-blue mt-1">하루 한 번 체크하면 출석 인정</p>
                         </div>
                         <div id="admin-roster-list" class="space-y-4"></div>
                     </div>

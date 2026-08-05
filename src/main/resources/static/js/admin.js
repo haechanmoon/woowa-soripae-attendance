@@ -79,12 +79,60 @@ async function handleReject(id) {
 
 // ---------- 임원진: 대면 출석 체크 ----------
 
+/**
+ * 임원이 그날 처리하지 못하고 넘어간 연습을 뒤늦게 정리할 수 있도록 날짜를 고른다.
+ * 서버는 처음부터 임의 날짜를 받았고(face-check의 practiceDate), 화면만 오늘로 묶여 있었다.
+ * 아직 오지 않은 날은 체크할 것이 없으므로 오늘까지만 허용한다.
+ */
+function changeRosterDate(iso) {
+    if (!iso) return;
+    state.rosterDate = iso > todayIso() ? todayIso() : iso;
+    loadAdminRoster();
+}
+
+function shiftRosterDate(delta) {
+    changeRosterDate(shiftIso(rosterDateIso(), delta));
+}
+
+function resetRosterDate() {
+    changeRosterDate(todayIso());
+}
+
+/** 지난 날짜를 보고 있을 때는 오늘 것을 만지는 줄 알고 잘못 누르지 않도록 눈에 띄게 알린다. */
+function renderRosterDateBar() {
+    const iso = rosterDateIso();
+    const isToday = isRosterToday();
+
+    const input = document.getElementById('roster-date-input');
+    input.value = iso;
+    input.max = todayIso();
+
+    const next = document.getElementById('btn-roster-next');
+    next.disabled = isToday;
+    next.classList.toggle('opacity-30', isToday);
+    document.getElementById('btn-roster-today').classList.toggle('hidden', isToday);
+
+    const note = document.getElementById('roster-date-note');
+    note.textContent = isToday ? `오늘 · ${formatDateKorean(iso)}` : `지난 날짜를 정리하는 중 · ${formatDateKorean(iso)}`;
+    note.className = isToday
+        ? 'text-xs font-bold text-toss-blue mt-3 text-center'
+        : 'text-xs font-black text-orange-500 mt-3 text-center';
+
+    document.getElementById('uncertified-title').textContent = `${rosterDayLabel()} 미인증`;
+    document.getElementById('roster-title').textContent = isToday ? '오늘의 대면 출석 명단' : `${shortDate(iso)} 대면 출석 명단`;
+    document.getElementById('roster-subtitle').textContent = isToday
+        ? '하루 한 번 체크하면 출석 인정'
+        : '그날 처리하지 못한 출석을 지금 채워 넣을 수 있어요';
+}
+
 async function loadAdminRoster() {
+    renderRosterDateBar();
+    const date = rosterDateIso();
     try {
         const [members, todayRecords, todaySchedules] = await Promise.all([
             api('/api/members'),
-            api(`/api/attendance-records?date=${todayIso()}`),
-            api(`/api/schedules?date=${todayIso()}`),
+            api(`/api/attendance-records?date=${date}`),
+            api(`/api/schedules?date=${date}`),
         ]);
         state.allMembers = members;
         state.todayRecordByMember = {};
@@ -102,10 +150,10 @@ async function loadAdminRoster() {
     loadUncertified();
 }
 
-/** 오늘 오기로 해놓고 인증을 안 올린 사람. 자동 처리하지 않고 임원이 보고 판단하도록 목록만 띄운다. */
+/** 그날 오기로 해놓고 인증을 안 올린 사람. 자동 처리하지 않고 임원이 보고 판단하도록 목록만 띄운다. */
 async function loadUncertified() {
     try {
-        renderUncertified(await api(`/api/attendance-records/uncertified?date=${todayIso()}`));
+        renderUncertified(await api(`/api/attendance-records/uncertified?date=${rosterDateIso()}`));
     } catch (e) {
         // 부가 정보라 실패해도 조용히 무시한다.
     }
@@ -113,23 +161,27 @@ async function loadUncertified() {
 
 function renderUncertified(list) {
     document.getElementById('uncertified-label').textContent =
-        list.length === 0 ? '오늘 등록자는 모두 인증했어요' : `${list.length}명이 아직 인증하지 않았어요`;
+        list.length === 0 ? `${rosterDayLabel()} 등록자는 모두 인증했어요` : `${list.length}명이 아직 인증하지 않았어요`;
 
     const el = document.getElementById('uncertified-list');
     if (list.length === 0) {
         el.innerHTML = `<p class="text-sm font-black text-toss-green text-center py-4 bg-green-50 rounded-2xl border border-green-100">모두 인증 완료 🎉</p>`;
         return;
     }
+    const isToday = isRosterToday();
     const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
     el.innerHTML = list.map(m => {
         const [h, min] = m.scheduledStartTime.split(':').map(Number);
-        const elapsed = nowMinutes - (h * 60 + min);
-        // 아직 시작 전이면 '안 온 사람'이 아니므로 경과 대신 예정으로 적는다.
-        const when = elapsed < 0
-            ? `<span class="text-[10px] font-bold text-toss-subText">${formatTime(m.scheduledStartTime)} 예정</span>`
-            : `<span class="text-[10px] font-black text-toss-red">${formatTime(m.scheduledStartTime)} · ${Math.floor(elapsed / 60)}시간 ${elapsed % 60}분 경과</span>`;
+        // 지난 날짜는 연습이 이미 끝나 '경과'가 의미 없다. 그날 오기로 한 시각만 적는다.
+        const elapsed = isToday ? nowMinutes - (h * 60 + min) : null;
+        const pending = elapsed !== null && elapsed < 0; // 아직 시작 전이면 '안 온 사람'이 아니다
+        const when = elapsed === null
+            ? `<span class="text-[10px] font-black text-toss-red">${formatTime(m.scheduledStartTime)} 등록 · 인증 없음</span>`
+            : pending
+                ? `<span class="text-[10px] font-bold text-toss-subText">${formatTime(m.scheduledStartTime)} 예정</span>`
+                : `<span class="text-[10px] font-black text-toss-red">${formatTime(m.scheduledStartTime)} · ${Math.floor(elapsed / 60)}시간 ${elapsed % 60}분 경과</span>`;
         return `
-            <div class="flex items-center justify-between p-3.5 rounded-2xl border ${elapsed < 0 ? 'bg-gray-50 border-gray-100' : 'bg-red-50/50 border-red-100'}">
+            <div class="flex items-center justify-between p-3.5 rounded-2xl border ${pending ? 'bg-gray-50 border-gray-100' : 'bg-red-50/50 border-red-100'}">
                 <div class="flex items-center space-x-2 min-w-0">
                     <span class="text-sm font-black text-toss-text">${m.name}</span>
                     <span class="text-[10px] font-bold text-toss-subText">${m.part}</span>
@@ -292,7 +344,7 @@ function renderAdminRoster() {
     const noSchedule = state.allMembers.filter(m => !state.todayScheduleByMember[m.id]);
 
     if (scheduled.length > 0) {
-        el.insertAdjacentHTML('beforeend', `<h4 class="text-xs font-black text-toss-blue px-1 mb-2">오늘 등록 (${scheduled.length}명)</h4>`);
+        el.insertAdjacentHTML('beforeend', `<h4 class="text-xs font-black text-toss-blue px-1 mb-2">${rosterDayLabel()} 등록 (${scheduled.length}명)</h4>`);
         scheduled.forEach(m => renderRosterCard(el, m));
     }
     if (noSchedule.length === 0) {
@@ -300,7 +352,7 @@ function renderAdminRoster() {
     }
     el.insertAdjacentHTML('beforeend', `
         <button onclick="toggleRosterNoSchedule()" class="w-full flex items-center justify-between px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl ${scheduled.length > 0 ? 'mt-5' : ''} active:scale-[0.99] transition-transform">
-            <span class="text-xs font-black text-gray-400">오늘 일정 없음 (${noSchedule.length}명)</span>
+            <span class="text-xs font-black text-gray-400">${rosterDayLabel()} 일정 없음 (${noSchedule.length}명)</span>
             <span class="text-[10px] text-gray-400">${state.rosterNoScheduleExpanded ? '▲' : '▼'}</span>
         </button>
         <div id="roster-no-schedule" class="space-y-4 ${state.rosterNoScheduleExpanded ? 'mt-4' : 'hidden'}"></div>`);
@@ -404,7 +456,7 @@ async function setRosterStatus(memberId, status) {
         await api('/api/attendance-records/face-check', {
             method: 'PUT',
             body: JSON.stringify({
-                memberId, practiceDate: todayIso(), result: status, lateMinutes: null
+                memberId, practiceDate: rosterDateIso(), result: status, lateMinutes: null
             })
         });
         showToast(status === 'PRESENT' ? '출석 처리되었습니다.' : '결석 처리되었습니다.');
@@ -421,7 +473,7 @@ async function saveLate(memberId) {
         await api('/api/attendance-records/face-check', {
             method: 'PUT',
             body: JSON.stringify({
-                memberId, practiceDate: todayIso(), result: 'LATE', lateMinutes: min
+                memberId, practiceDate: rosterDateIso(), result: 'LATE', lateMinutes: min
             })
         });
         showToast(min >= 60 ? '60분 이상 지각으로 결석 처리되었습니다.' : `${min}분 지각 처리 완료`);
