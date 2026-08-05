@@ -552,6 +552,130 @@ async function addSong() {
     }
 }
 
+// ---------- 임원진: 정산 (지각비 미납부자 공지) ----------
+
+const SETTLEMENT_FIELD_KEYS = {
+    'settlement-event-title': 'soripae_settlement_event_title',
+    'settlement-officer-name': 'soripae_settlement_officer_name',
+    'settlement-bank-name': 'soripae_settlement_bank_name',
+    'settlement-account-number': 'soripae_settlement_account_number',
+    'settlement-account-holder': 'soripae_settlement_account_holder',
+};
+
+/** 행사명/총무 이름/계좌는 기기별로 다음에도 또 쓰므로 localStorage에 남겨 다시 입력하지 않게 한다. */
+function restoreSettlementInputs() {
+    Object.entries(SETTLEMENT_FIELD_KEYS).forEach(([id, storageKey]) => {
+        const saved = localStorage.getItem(storageKey);
+        if (saved) document.getElementById(id).value = saved;
+    });
+}
+
+function persistSettlementInputs() {
+    Object.entries(SETTLEMENT_FIELD_KEYS).forEach(([id, storageKey]) => {
+        localStorage.setItem(storageKey, document.getElementById(id).value.trim());
+    });
+}
+
+async function loadAdminSettlement() {
+    restoreSettlementInputs();
+    try {
+        state.unpaidFines = await api('/api/members/unpaid-fines');
+        state.excludedUnpaidFineIds = new Set();
+        renderUnpaidFineList();
+        updateNoticePreview();
+    } catch (e) {
+        showToast(e.message);
+    }
+}
+
+function renderUnpaidFineList() {
+    const el = document.getElementById('settlement-list');
+    const emptyState = document.getElementById('settlement-empty-state');
+    const includedCount = state.unpaidFines.filter(f => !state.excludedUnpaidFineIds.has(f.memberId)).length;
+    document.getElementById('settlement-count').textContent = includedCount;
+
+    if (state.unpaidFines.length === 0) {
+        el.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        document.getElementById('btn-settlement-toggle-all').classList.add('hidden');
+        return;
+    }
+    emptyState.classList.add('hidden');
+    document.getElementById('btn-settlement-toggle-all').classList.remove('hidden');
+    document.getElementById('btn-settlement-toggle-all').textContent = includedCount === 0 ? '전체 선택' : '전체 해제';
+
+    el.innerHTML = state.unpaidFines.map(f => {
+        const checked = !state.excludedUnpaidFineIds.has(f.memberId);
+        return `
+            <label class="flex items-center justify-between p-3.5 rounded-2xl border ${checked ? 'bg-blue-50/50 border-blue-100' : 'bg-gray-50 border-gray-100 opacity-60'} cursor-pointer">
+                <span class="flex items-center space-x-2 min-w-0">
+                    <input type="checkbox" ${checked ? 'checked' : ''} onchange="toggleUnpaidFineExclude(${f.memberId})" class="w-4 h-4 accent-toss-blue shrink-0">
+                    <span class="text-sm font-black text-toss-text">${f.name}</span>
+                    <span class="text-[10px] font-bold text-toss-subText">${f.part}</span>
+                </span>
+                <span class="text-sm font-black text-toss-red">${f.amount.toLocaleString()}원</span>
+            </label>`;
+    }).join('');
+}
+
+function toggleUnpaidFineExclude(memberId) {
+    if (state.excludedUnpaidFineIds.has(memberId)) {
+        state.excludedUnpaidFineIds.delete(memberId);
+    } else {
+        state.excludedUnpaidFineIds.add(memberId);
+    }
+    renderUnpaidFineList();
+    updateNoticePreview();
+}
+
+function toggleAllUnpaidFine() {
+    const includedCount = state.unpaidFines.filter(f => !state.excludedUnpaidFineIds.has(f.memberId)).length;
+    state.excludedUnpaidFineIds = includedCount === 0 ? new Set() : new Set(state.unpaidFines.map(f => f.memberId));
+    renderUnpaidFineList();
+    updateNoticePreview();
+}
+
+function buildNoticeText() {
+    const eventTitle = document.getElementById('settlement-event-title').value.trim() || '[행사명]';
+    const officerName = document.getElementById('settlement-officer-name').value.trim() || '[총무 이름]';
+    const bankName = document.getElementById('settlement-bank-name').value.trim() || '[은행]';
+    const accountNumber = document.getElementById('settlement-account-number').value.trim() || '[계좌번호]';
+    const accountHolder = document.getElementById('settlement-account-holder').value.trim() || '[예금주]';
+
+    const names = state.unpaidFines
+        .filter(f => !state.excludedUnpaidFineIds.has(f.memberId))
+        .map(f => `${f.name} ${f.amount.toLocaleString()}원`)
+        .join('\n');
+
+    return `‼️${eventTitle} 지각비 미납부자 명단 공지‼️\n\n`
+        + `안녕하세요! 소리패 총무 ${officerName} 입니다😊\n`
+        + `현재 기준 ${eventTitle} 연습 지각비 미납부자 명단 안내 드립니다\n`
+        + `아래 명단에 이름이 있는 부원은 보는 즉시 지각비를 입금해주시기 바랍니다! \n\n`
+        + `*지각비는 공연 뒤풀이 회식에 보태 사용할 예정입니다 \n\n`
+        + `${names || '(선택된 인원 없음)'}\n\n`
+        + `${accountNumber} ${bankName} ${accountHolder}`;
+}
+
+function updateNoticePreview() {
+    persistSettlementInputs();
+    document.getElementById('settlement-preview').value = buildNoticeText();
+}
+
+async function copyNoticeText() {
+    const includedCount = state.unpaidFines.filter(f => !state.excludedUnpaidFineIds.has(f.memberId)).length;
+    if (includedCount === 0) return showToast('선택된 인원이 없습니다.');
+
+    const missing = Object.keys(SETTLEMENT_FIELD_KEYS).filter(id => !document.getElementById(id).value.trim());
+    if (missing.length > 0) return showToast('행사명 · 총무 이름 · 계좌 정보를 모두 입력해주세요.');
+
+    try {
+        await navigator.clipboard.writeText(buildNoticeText());
+        showToast('공지 문구를 복사했습니다.');
+    } catch (e) {
+        showToast('복사에 실패했습니다. 직접 선택해서 복사해주세요.');
+    }
+}
+
 async function openMemberDetail(memberId) {
     try {
         const detail = await api(`/api/members/${memberId}`);

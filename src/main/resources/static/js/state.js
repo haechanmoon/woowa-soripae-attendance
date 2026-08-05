@@ -23,6 +23,9 @@ const state = {
     mySchedules: [],
     thisWeekEditing: null,
     pendingPhotoDataUrl: null,
+    unpaidFines: [],
+    // 이미 낸 사람은 명단에서만 잠깐 빼고 싶은 경우가 있어 제외 여부는 화면에서만 들고 있는다.
+    excludedUnpaidFineIds: new Set(),
 };
 
 const CORE_START = '13:00';

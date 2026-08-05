@@ -8,8 +8,12 @@ import com.woowasoripae.attendance.web.member.dto.FineSummaryResponse;
 import com.woowasoripae.attendance.web.member.dto.MemberCreateRequest;
 import com.woowasoripae.attendance.web.member.dto.MemberDetailResponse;
 import com.woowasoripae.attendance.web.member.dto.MemberSummaryResponse;
+import com.woowasoripae.attendance.web.member.dto.UnpaidFineResponse;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -84,6 +88,23 @@ public class MemberService {
         return new MemberDetailResponse(
                 member.getId(), member.getName(),
                 member.getPosition(), member.getPart(), member.isOfficer(), unpaidFine, recentHistory);
+    }
+
+    /** 임원 관리 > 정산 > 지각비 미납부자 명단. 벌금이 있는 부원만, 금액 큰 순으로 반환한다. */
+    public List<UnpaidFineResponse> getUnpaidFines() {
+        List<AttendanceRecordRepository.MemberFineTotal> totals = attendanceRecordRepository.sumFineAmountGroupedByMember();
+        Map<Long, Member> memberById = memberRepository
+                .findAllById(totals.stream().map(AttendanceRecordRepository.MemberFineTotal::getMemberId).toList())
+                .stream()
+                .collect(Collectors.toMap(Member::getId, Function.identity()));
+
+        return totals.stream()
+                .map(t -> {
+                    Member member = memberById.get(t.getMemberId());
+                    return new UnpaidFineResponse(member.getId(), member.getName(), member.getPart(), t.getTotalFine());
+                })
+                .sorted(Comparator.comparingInt(UnpaidFineResponse::amount).reversed())
+                .toList();
     }
 
     @Transactional

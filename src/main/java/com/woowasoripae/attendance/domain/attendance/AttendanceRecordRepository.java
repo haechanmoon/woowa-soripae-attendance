@@ -31,4 +31,15 @@ public interface AttendanceRecordRepository extends JpaRepository<AttendanceReco
 
     @Query("select coalesce(sum(a.lateMinutes), 0) from AttendanceRecord a where a.member.id = :memberId and a.status = 'LATE'")
     int sumLateMinutesByMemberId(@Param("memberId") Long memberId);
+
+    /** 부원별 누적 벌금 합계. 지각비 미납부자 명단(임원 관리 > 정산)이 사용한다. */
+    @Query("select a.member.id as memberId, coalesce(sum(a.fineAmount), 0) as totalFine "
+            + "from AttendanceRecord a group by a.member.id having coalesce(sum(a.fineAmount), 0) > 0")
+    List<MemberFineTotal> sumFineAmountGroupedByMember();
+
+    interface MemberFineTotal {
+        Long getMemberId();
+
+        int getTotalFine();
+    }
 }

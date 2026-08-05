@@ -269,10 +269,11 @@
                     <h2 class="text-2xl font-black text-toss-text">임원 관리</h2>
                 </div>
 
-                <div class="grid grid-cols-3 gap-2 mb-5 bg-gray-100 p-1.5 rounded-2xl">
+                <div class="grid grid-cols-4 gap-2 mb-5 bg-gray-100 p-1.5 rounded-2xl">
                     <button id="btn-admin-queue" onclick="switchAdminMenu('queue')" class="py-2.5 text-xs font-black bg-white text-toss-text rounded-xl shadow-sm transition-all">사진 승인</button>
                     <button id="btn-admin-face" onclick="switchAdminMenu('face')" class="py-2.5 text-xs font-black text-gray-400 rounded-xl transition-all">대면 체크</button>
                     <button id="btn-admin-event" onclick="switchAdminMenu('event')" class="py-2.5 text-xs font-black text-gray-400 rounded-xl transition-all">행사 관리</button>
+                    <button id="btn-admin-settlement" onclick="switchAdminMenu('settlement')" class="py-2.5 text-xs font-black text-gray-400 rounded-xl transition-all">정산</button>
                     <button id="btn-admin-song" onclick="switchAdminMenu('song')" class="hidden py-2.5 text-xs font-black text-gray-400 rounded-xl transition-all">곡 관리</button>
                 </div>
 
@@ -341,6 +342,37 @@
                         </div>
                         <button onclick="addClubEvent()" class="w-full bg-toss-blue text-white font-black text-sm py-3 rounded-xl shadow-sm active:scale-[0.98] transition-transform mb-5">행사 등록</button>
                         <div id="event-list" class="space-y-2"></div>
+                    </div>
+                </div>
+
+                <div id="admin-view-settlement" class="hidden space-y-4 pb-4">
+                    <div class="bg-toss-card rounded-[28px] p-6 shadow-toss">
+                        <div class="mb-5">
+                            <h3 class="text-base font-black text-toss-text">지각비 미납부자 공지 만들기</h3>
+                            <p class="text-xs font-bold text-toss-subText mt-1">명단은 누적 벌금에서 자동으로 채워집니다. 이미 낸 부원은 체크를 풀어주세요.</p>
+                        </div>
+
+                        <div class="flex justify-between items-center mb-3 px-1">
+                            <span class="text-xs font-black text-toss-subText">미납부자 <span id="settlement-count">0</span>명</span>
+                            <button onclick="toggleAllUnpaidFine()" id="btn-settlement-toggle-all" class="text-xs font-black text-toss-blue">전체 해제</button>
+                        </div>
+                        <div id="settlement-list" class="space-y-2 mb-5"></div>
+                        <div id="settlement-empty-state" class="hidden text-center py-8 bg-gray-50 rounded-2xl border border-gray-100 text-xs font-bold text-gray-400 mb-5">미납부자가 없습니다.</div>
+
+                        <div class="space-y-2 mb-5">
+                            <input type="text" id="settlement-event-title" placeholder="행사명 (예: 하계공연)" oninput="updateNoticePreview()" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold outline-none focus:border-toss-blue">
+                            <input type="text" id="settlement-officer-name" placeholder="총무 이름" oninput="updateNoticePreview()" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold outline-none focus:border-toss-blue">
+                            <div class="flex space-x-2">
+                                <input type="text" id="settlement-bank-name" placeholder="은행" oninput="updateNoticePreview()" class="flex-[1] p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold outline-none focus:border-toss-blue">
+                                <input type="text" id="settlement-account-number" placeholder="계좌번호" oninput="updateNoticePreview()" class="flex-[1.5] p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold outline-none focus:border-toss-blue">
+                                <input type="text" id="settlement-account-holder" placeholder="예금주" oninput="updateNoticePreview()" class="flex-[1] p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold outline-none focus:border-toss-blue">
+                            </div>
+                        </div>
+
+                        <textarea id="settlement-preview" readonly rows="10" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl text-xs font-bold text-toss-text outline-none mb-3 resize-none"></textarea>
+                        <button onclick="copyNoticeText()" class="w-full bg-toss-blue text-white font-black text-sm py-3.5 rounded-xl shadow-sm active:scale-[0.98] transition-transform">
+                            <i class="fa-regular fa-copy mr-1.5"></i>공지 문구 복사하기
+                        </button>
                     </div>
                 </div>
 

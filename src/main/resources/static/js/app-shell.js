@@ -46,8 +46,8 @@ function switchTab(tabName) {
 }
 
 function switchAdminMenu(menu) {
-    const buttons = { queue: document.getElementById('btn-admin-queue'), face: document.getElementById('btn-admin-face'), event: document.getElementById('btn-admin-event'), song: document.getElementById('btn-admin-song') };
-    const views = { queue: document.getElementById('admin-view-queue'), face: document.getElementById('admin-view-face'), event: document.getElementById('admin-view-event'), song: document.getElementById('admin-view-song') };
+    const buttons = { queue: document.getElementById('btn-admin-queue'), face: document.getElementById('btn-admin-face'), event: document.getElementById('btn-admin-event'), settlement: document.getElementById('btn-admin-settlement'), song: document.getElementById('btn-admin-song') };
+    const views = { queue: document.getElementById('admin-view-queue'), face: document.getElementById('admin-view-face'), event: document.getElementById('admin-view-event'), settlement: document.getElementById('admin-view-settlement'), song: document.getElementById('admin-view-song') };
 
     Object.keys(views).forEach(key => {
         const active = key === menu;
@@ -64,6 +64,7 @@ function switchAdminMenu(menu) {
     if (menu === 'queue') loadAdminQueue();
     else if (menu === 'face') loadAdminRoster();
     else if (menu === 'event') loadAdminEvents();
+    else if (menu === 'settlement') loadAdminSettlement();
     else loadAdminSongs();
 }
 

@@ -5,6 +5,7 @@ import com.woowasoripae.attendance.web.member.dto.FineSummaryResponse;
 import com.woowasoripae.attendance.web.member.dto.MemberCreateRequest;
 import com.woowasoripae.attendance.web.member.dto.MemberDetailResponse;
 import com.woowasoripae.attendance.web.member.dto.MemberSummaryResponse;
+import com.woowasoripae.attendance.web.member.dto.UnpaidFineResponse;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -45,5 +46,11 @@ public class MemberController {
     @GetMapping("/api/members/{memberId}")
     public MemberDetailResponse getMemberDetail(@PathVariable Long memberId) {
         return memberService.getMemberDetail(memberId);
+    }
+
+    /** 지각비 미납부자 명단 조회 API — 임원 관리 > 정산. */
+    @GetMapping("/api/members/unpaid-fines")
+    public List<UnpaidFineResponse> getUnpaidFines() {
+        return memberService.getUnpaidFines();
     }
 }
