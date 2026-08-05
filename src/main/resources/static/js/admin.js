@@ -606,15 +606,17 @@ async function addSong() {
 
 // ---------- 임원진: 정산 (지각비 미납부자 공지) ----------
 
+// 이번 하계공연 정산에만 쓰는 값이라 입력칸을 두지 않고 여기서 고정한다.
+// 행사나 총무가 바뀌면 이 두 줄만 고치면 된다.
+const SETTLEMENT_EVENT_TITLE = '하계공연';
+const SETTLEMENT_OFFICER_NAME = '김유미';
+
 const SETTLEMENT_FIELD_KEYS = {
-    'settlement-event-title': 'soripae_settlement_event_title',
-    'settlement-officer-name': 'soripae_settlement_officer_name',
-    'settlement-bank-name': 'soripae_settlement_bank_name',
-    'settlement-account-number': 'soripae_settlement_account_number',
+    'settlement-account': 'soripae_settlement_account',
     'settlement-account-holder': 'soripae_settlement_account_holder',
 };
 
-/** 행사명/총무 이름/계좌는 기기별로 다음에도 또 쓰므로 localStorage에 남겨 다시 입력하지 않게 한다. */
+/** 계좌는 기기별로 다음에도 또 쓰므로 localStorage에 남겨 다시 입력하지 않게 한다. */
 function restoreSettlementInputs() {
     Object.entries(SETTLEMENT_FIELD_KEYS).forEach(([id, storageKey]) => {
         const saved = localStorage.getItem(storageKey);
@@ -688,10 +690,7 @@ function toggleAllUnpaidFine() {
 }
 
 function buildNoticeText() {
-    const eventTitle = document.getElementById('settlement-event-title').value.trim() || '[행사명]';
-    const officerName = document.getElementById('settlement-officer-name').value.trim() || '[총무 이름]';
-    const bankName = document.getElementById('settlement-bank-name').value.trim() || '[은행]';
-    const accountNumber = document.getElementById('settlement-account-number').value.trim() || '[계좌번호]';
+    const account = document.getElementById('settlement-account').value.trim() || '[은행 + 계좌번호]';
     const accountHolder = document.getElementById('settlement-account-holder').value.trim() || '[예금주]';
 
     const names = state.unpaidFines
@@ -699,13 +698,13 @@ function buildNoticeText() {
         .map(f => `${f.name} ${f.amount.toLocaleString()}원`)
         .join('\n');
 
-    return `‼️${eventTitle} 지각비 미납부자 명단 공지‼️\n\n`
-        + `안녕하세요! 소리패 총무 ${officerName} 입니다😊\n`
-        + `현재 기준 ${eventTitle} 연습 지각비 미납부자 명단 안내 드립니다\n`
+    return `‼️${SETTLEMENT_EVENT_TITLE} 지각비 미납부자 명단 공지‼️\n\n`
+        + `안녕하세요! 소리패 총무 ${SETTLEMENT_OFFICER_NAME} 입니다😊\n`
+        + `현재 기준 ${SETTLEMENT_EVENT_TITLE} 연습 지각비 미납부자 명단 안내 드립니다\n`
         + `아래 명단에 이름이 있는 부원은 보는 즉시 지각비를 입금해주시기 바랍니다! \n\n`
         + `*지각비는 공연 뒤풀이 회식에 보태 사용할 예정입니다 \n\n`
         + `${names || '(선택된 인원 없음)'}\n\n`
-        + `${accountNumber} ${bankName} ${accountHolder}`;
+        + `${account} ${accountHolder}`;
 }
 
 function updateNoticePreview() {
@@ -718,7 +717,7 @@ async function copyNoticeText() {
     if (includedCount === 0) return showToast('선택된 인원이 없습니다.');
 
     const missing = Object.keys(SETTLEMENT_FIELD_KEYS).filter(id => !document.getElementById(id).value.trim());
-    if (missing.length > 0) return showToast('행사명 · 총무 이름 · 계좌 정보를 모두 입력해주세요.');
+    if (missing.length > 0) return showToast('계좌와 예금주를 입력해주세요.');
 
     try {
         await navigator.clipboard.writeText(buildNoticeText());
