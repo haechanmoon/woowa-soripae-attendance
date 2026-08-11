@@ -9,12 +9,16 @@ import com.woowasoripae.attendance.global.file.FileStorageService;
 import com.woowasoripae.attendance.web.attendance.dto.ApproveAttendanceRequest;
 import com.woowasoripae.attendance.web.attendance.dto.AttendanceRecordResponse;
 import com.woowasoripae.attendance.web.attendance.dto.FaceCheckRequest;
+import com.woowasoripae.attendance.web.attendance.dto.MissedAttendanceDateResponse;
 import com.woowasoripae.attendance.web.attendance.dto.UncertifiedMemberResponse;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.YearMonth;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -24,6 +28,9 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 @Transactional(readOnly = true)
 public class AttendanceService {
+
+    /** 날짜를 하나하나 넘겨봐야만 놓친 인증을 알 수 있던 것을, 몇 주치를 한 번에 모아 보여준다. */
+    private static final int MISSED_LOOKBACK_DAYS = 14;
 
     private final AttendanceRecordRepository attendanceRecordRepository;
     private final MemberRepository memberRepository;
@@ -151,6 +158,38 @@ public class AttendanceService {
                         schedule.getMember().getName(),
                         schedule.getMember().getPart(),
                         schedule.getStartTime()))
+                .toList();
+    }
+
+    /**
+     * 임원 관리: 지난 {@value #MISSED_LOOKBACK_DAYS}일 중 등록해놓고 인증도 대면 체크도 안 된 날짜를 모아준다.
+     * 오늘은 아직 연습이 끝나지 않았을 수 있어 제외하고, 어제까지만 본다.
+     */
+    public List<MissedAttendanceDateResponse> getMissedAttendanceSummary() {
+        LocalDate to = LocalDate.now().minusDays(1);
+        LocalDate from = to.minusDays(MISSED_LOOKBACK_DAYS - 1);
+
+        Set<String> certifiedKeys = attendanceRecordRepository.findByPracticeDateBetween(from, to).stream()
+                .filter(record -> record.getStatus() != AttendanceStatus.REJECTED)
+                .map(record -> record.getPracticeDate() + "-" + record.getMember().getId())
+                .collect(Collectors.toSet());
+
+        List<PracticeSchedule> uncertifiedSchedules = practiceScheduleRepository
+                .findWithMemberByPracticeDateBetween(from, to).stream()
+                .filter(schedule -> !certifiedKeys.contains(schedule.getPracticeDate() + "-" + schedule.getMember().getId()))
+                .sorted(Comparator.comparing(PracticeSchedule::getPracticeDate).thenComparing(PracticeSchedule::getStartTime))
+                .toList();
+
+        Map<LocalDate, List<UncertifiedMemberResponse>> byDate = uncertifiedSchedules.stream()
+                .collect(Collectors.groupingBy(PracticeSchedule::getPracticeDate, LinkedHashMap::new,
+                        Collectors.mapping(schedule -> new UncertifiedMemberResponse(
+                                schedule.getMember().getId(),
+                                schedule.getMember().getName(),
+                                schedule.getMember().getPart(),
+                                schedule.getStartTime()), Collectors.toList())));
+
+        return byDate.entrySet().stream()
+                .map(entry -> new MissedAttendanceDateResponse(entry.getKey(), entry.getValue()))
                 .toList();
     }
 

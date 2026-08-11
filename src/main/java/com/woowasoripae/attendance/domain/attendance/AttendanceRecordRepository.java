@@ -21,6 +21,8 @@ public interface AttendanceRecordRepository extends JpaRepository<AttendanceReco
 
     List<AttendanceRecord> findByPracticeDate(LocalDate practiceDate);
 
+    List<AttendanceRecord> findByPracticeDateBetween(LocalDate start, LocalDate end);
+
     Optional<AttendanceRecord> findByMemberIdAndPracticeDate(Long memberId, LocalDate practiceDate);
 
     @Query("select coalesce(sum(a.fineAmount), 0) from AttendanceRecord a where a.member.id = :memberId")

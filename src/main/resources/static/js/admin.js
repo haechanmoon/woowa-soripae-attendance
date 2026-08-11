@@ -148,6 +148,42 @@ async function loadAdminRoster() {
     loadRegistrationStatus();
     loadThisWeekChanges();
     loadUncertified();
+    loadMissedAttendance();
+}
+
+/**
+ * 지난 2주 중 날짜를 옮기지 않아도 놓친 인증이 있는지 바로 보이게 한다.
+ * 임원이 그날 확인을 못 하고 넘어가면, 다시 그 날짜를 직접 찾아가야만 알 수 있었다.
+ */
+async function loadMissedAttendance() {
+    try {
+        renderMissedAttendance(await api('/api/attendance-records/missed'));
+    } catch (e) {
+        // 부가 정보라 실패해도 조용히 무시한다.
+    }
+}
+
+function renderMissedAttendance(dates) {
+    const card = document.getElementById('missed-attendance-card');
+    if (!dates || dates.length === 0) {
+        card.classList.add('hidden');
+        return;
+    }
+    card.classList.remove('hidden');
+
+    const totalMembers = dates.reduce((sum, d) => sum + d.members.length, 0);
+    document.getElementById('missed-attendance-label').textContent =
+        `${dates.length}일 · ${totalMembers}명이 아직 처리되지 않았어요`;
+
+    const el = document.getElementById('missed-attendance-list');
+    el.innerHTML = dates.map(d => `
+        <button onclick="changeRosterDate('${d.practiceDate}')" class="w-full flex items-center justify-between p-3.5 bg-white rounded-2xl border border-orange-100 active:scale-[0.99] transition-transform">
+            <span class="text-sm font-black text-toss-text">${shortDate(d.practiceDate)}</span>
+            <span class="flex items-center space-x-2 min-w-0">
+                <span class="text-xs font-bold text-orange-500 truncate max-w-[140px]">${d.members.map(m => m.name).join(', ')}</span>
+                <i class="fa-solid fa-chevron-right text-[10px] text-orange-300 shrink-0"></i>
+            </span>
+        </button>`).join('');
 }
 
 /** 그날 오기로 해놓고 인증을 안 올린 사람. 자동 처리하지 않고 임원이 보고 판단하도록 목록만 띄운다. */

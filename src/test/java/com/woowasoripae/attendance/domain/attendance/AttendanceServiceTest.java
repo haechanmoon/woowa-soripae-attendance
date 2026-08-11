@@ -233,6 +233,95 @@ class AttendanceServiceTest {
         }
     }
 
+    /**
+     * "날짜를 옮겨야만 알 수 있던" 놓친 인증을, 넘기지 않고도 지난 2주치를 한 번에 모아 보여준다.
+     */
+    @Nested
+    @DisplayName("getMissedAttendanceSummary - 지난 2주 놓친 인증")
+    class MissedAttendanceSummary {
+
+        private final LocalDate today = LocalDate.now();
+        private final LocalDate yesterday = today.minusDays(1);
+        private final LocalDate twoDaysAgo = today.minusDays(2);
+
+        private Member memberOf(long id, String name) {
+            Member m = new Member(name, null, "세션");
+            ReflectionTestUtils.setField(m, "id", id);
+            return m;
+        }
+
+        private AttendanceRecord recordOf(Member m, LocalDate date, AttendanceStatus status) {
+            AttendanceRecord record = AttendanceRecord.createPendingPhotoSubmission(
+                    m, date, REGISTERED_START, "p.jpg", java.time.LocalDateTime.now());
+            ReflectionTestUtils.setField(record, "status", status);
+            return record;
+        }
+
+        @Test
+        @DisplayName("등록만 해두고 인증도 대면 체크도 안 된 지난 날짜를 날짜별로 묶어 돌려준다")
+        void groupsUncertifiedSchedulesByDate() {
+            Member yumi = memberOf(1L, "김유미");
+            Member hyebin = memberOf(2L, "최혜빈");
+            LocalDate from = yesterday.minusDays(13);
+            given(practiceScheduleRepository.findWithMemberByPracticeDateBetween(from, yesterday))
+                    .willReturn(List.of(
+                            new PracticeSchedule(yumi, twoDaysAgo, LocalTime.of(13, 0)),
+                            new PracticeSchedule(hyebin, yesterday, LocalTime.of(19, 0))));
+            given(attendanceRecordRepository.findByPracticeDateBetween(from, yesterday))
+                    .willReturn(List.of());
+
+            var summary = attendanceService.getMissedAttendanceSummary();
+
+            assertThat(summary).hasSize(2);
+            assertThat(summary.get(0).practiceDate()).isEqualTo(twoDaysAgo);
+            assertThat(summary.get(0).members()).extracting(r -> r.name()).containsExactly("김유미");
+            assertThat(summary.get(1).practiceDate()).isEqualTo(yesterday);
+            assertThat(summary.get(1).members()).extracting(r -> r.name()).containsExactly("최혜빈");
+        }
+
+        @Test
+        @DisplayName("이미 인증/대면 체크가 끝난 날짜는 목록에서 빠진다")
+        void excludesAlreadyCertifiedDates() {
+            Member yumi = memberOf(1L, "김유미");
+            LocalDate from = yesterday.minusDays(13);
+            given(practiceScheduleRepository.findWithMemberByPracticeDateBetween(from, yesterday))
+                    .willReturn(List.of(new PracticeSchedule(yumi, yesterday, LocalTime.of(13, 0))));
+            given(attendanceRecordRepository.findByPracticeDateBetween(from, yesterday))
+                    .willReturn(List.of(recordOf(yumi, yesterday, AttendanceStatus.PRESENT)));
+
+            assertThat(attendanceService.getMissedAttendanceSummary()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("반려된 기록만 있는 날짜는 여전히 놓친 것으로 본다")
+        void rejectedRecordStillCountsAsMissed() {
+            Member yumi = memberOf(1L, "김유미");
+            LocalDate from = yesterday.minusDays(13);
+            given(practiceScheduleRepository.findWithMemberByPracticeDateBetween(from, yesterday))
+                    .willReturn(List.of(new PracticeSchedule(yumi, yesterday, LocalTime.of(13, 0))));
+            given(attendanceRecordRepository.findByPracticeDateBetween(from, yesterday))
+                    .willReturn(List.of(recordOf(yumi, yesterday, AttendanceStatus.REJECTED)));
+
+            assertThat(attendanceService.getMissedAttendanceSummary())
+                    .extracting(r -> r.practiceDate())
+                    .containsExactly(yesterday);
+        }
+
+        @Test
+        @DisplayName("오늘 날짜는 아직 연습이 끝나지 않았을 수 있어 대상에서 제외한다")
+        void excludesToday() {
+            given(practiceScheduleRepository.findWithMemberByPracticeDateBetween(any(), any()))
+                    .willAnswer(invocation -> {
+                        LocalDate to = invocation.getArgument(1);
+                        assertThat(to).isEqualTo(yesterday);
+                        return List.of();
+                    });
+            given(attendanceRecordRepository.findByPracticeDateBetween(any(), any())).willReturn(List.of());
+
+            assertThat(attendanceService.getMissedAttendanceSummary()).isEmpty();
+        }
+    }
+
     @Nested
     @DisplayName("approve")
     class Approve {

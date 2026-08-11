@@ -4,6 +4,7 @@ import com.woowasoripae.attendance.domain.attendance.AttendanceService;
 import com.woowasoripae.attendance.web.attendance.dto.ApproveAttendanceRequest;
 import com.woowasoripae.attendance.web.attendance.dto.AttendanceRecordResponse;
 import com.woowasoripae.attendance.web.attendance.dto.FaceCheckRequest;
+import com.woowasoripae.attendance.web.attendance.dto.MissedAttendanceDateResponse;
 import com.woowasoripae.attendance.web.attendance.dto.UncertifiedMemberResponse;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
@@ -73,6 +74,12 @@ public class AttendanceController {
     @GetMapping("/api/attendance-records/uncertified")
     public List<UncertifiedMemberResponse> getUncertified(@RequestParam(required = false) LocalDate date) {
         return attendanceService.getUncertifiedMembers(date != null ? date : LocalDate.now());
+    }
+
+    /** 임원 관리 > 대면 체크: 지난 2주 중 날짜를 옮기지 않아도 보이는, 아직 인증/대면 체크가 안 된 날짜 모음. */
+    @GetMapping("/api/attendance-records/missed")
+    public List<MissedAttendanceDateResponse> getMissedAttendance() {
+        return attendanceService.getMissedAttendanceSummary();
     }
 
     /** 임원 관리 > 사진 승인 대기열 목록. */
