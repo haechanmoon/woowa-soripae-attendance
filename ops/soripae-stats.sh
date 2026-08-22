@@ -249,7 +249,9 @@ HEAD
 
 echo "<header><h1>소리패 접속 통계</h1>"
 echo "<p class=\"sub\">서버 접속 기록을 집계한 페이지입니다. 부원들이 언제 얼마나 앱을 쓰는지 보여줍니다.</p>"
-echo "<p class=\"gen\">$(TZ=Asia/Seoul date '+%Y년 %-m월 %-d일 %H:%M') 기준 · 매시간 자동 갱신</p></header>"
+echo "<p class=\"gen\">$(TZ=Asia/Seoul date '+%Y년 %-m월 %-d일 %H:%M') 기준 · 매시간 자동 갱신</p>"
+[ -f "$OUT_DIR/updates.html" ] && echo '<p style="margin:10px 0 0"><a href="updates.html" style="font-size:12px;font-weight:800;color:var(--series);text-decoration:none">업데이트 내역 보기 →</a></p>'
+echo "</header>"
 
 echo '<div class="kpis">'
 echo "<div class=\"kpi\"><div class=\"n\">${today_v}<small>명</small></div><div class=\"l\">오늘 접속자</div></div>"
@@ -286,3 +288,11 @@ echo '</div></body></html>'
 
 mv "$OUT.tmp" "$OUT"
 chmod 644 "$OUT"
+
+# 저장소의 CHANGELOG.md 를 같은 자리에 렌더링한다. EC2는 git pull 로 코드를 받으므로
+# 원본은 저장소의 마크다운 하나뿐이고, 배포하면 이 페이지도 자동으로 최신이 된다.
+APP_DIR=${APP_DIR:-/home/ec2-user/app}
+if [ -f "$APP_DIR/docs/CHANGELOG.md" ] && [ -x "$APP_DIR/ops/render-changelog.py" ]; then
+    python3 "$APP_DIR/ops/render-changelog.py" "$APP_DIR/docs/CHANGELOG.md" "$OUT_DIR/updates.html" > /dev/null
+    chmod 644 "$OUT_DIR/updates.html"
+fi
